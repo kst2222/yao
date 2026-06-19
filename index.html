@@ -13,7 +13,7 @@
 
   input, select, button, textarea { padding: 7px; font-size: 13px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; }
   textarea { width: 100%; height: 75px; resize: vertical; font-family: monospace; }
-  button { cursor: pointer; font-weight: bold; transition: all 0.2s; }
+  button { pointer: cursor; font-weight: bold; transition: all 0.2s; }
   
   .btn-primary { background: #2563eb; color: white; border: none; padding: 8px 15px; }
   .btn-sub { background: #64748b; color: white; border: none; }
@@ -534,15 +534,6 @@
         if (item.type === "slot") handleSlotClick(item.name);
       };
 
-      el.ondblclick = function(e) {
-        e.stopPropagation();
-        if(editMode || item.type !== "slot") return;
-        var carData = cars.find(function(c){ return c.place === item.name; });
-        if (carData && confirm("【出庫】\n" + carData.user + " [" + carData.bodyNo + "] を消去しますか？")) {
-          cars = cars.filter(function(c){ return c.place !== item.name; }); save(); render();
-        }
-      };
-
       el.onmousedown = function(ev) { dragStart(ev, item, el); };
       el.ontouchstart = function(ev) { dragStart(ev, item, el); };
       mapEl.appendChild(el);
@@ -842,7 +833,6 @@
     }
   }
 
-  // 💡 【修正】最小倍率の安全ガードの下限を、0.4 (40%) から 「0.2 (20%)」 に拡張！
   window.changeZoom = function(amt) {
     if (amt === 0) {
       zoomLevel = 1.0;
@@ -942,28 +932,50 @@
     save(); render();
   };
 
+  // 💡 【大修正】重ならずに「一括作成と同じ等間隔」でピシッと整列するアルゴリズムへ超進化！
   window.alignSelected = function(mode) {
     if (selectedItemIds.length < 2) { alert("ドラッグして囲むか、2個以上の図形を選択してください。"); return; }
     
+    // 現在選択されている図形データだけを抽出
+    var targets = items.filter(function(it) { return selectedItemIds.includes(it.id); });
+    // パネルに入力されている「間隔(px)」の数字をそのまま読み込む
+    var gap = parseInt(document.getElementById("bulkGap").value) || 0;
+
     if (mode === 'left') {
+      // ➔ 左揃え（縦一列に積み上げ整列）
+      // 選択図形の中で「一番左端」にあるX座標を見つけてそこを軸にする
       var minX = 999999;
-      items.forEach(function(it) {
-        if (selectedItemIds.includes(it.id) && it.x < minX) minX = it.x;
-      });
-      items.forEach(function(it) {
-        if (selectedItemIds.includes(it.id)) it.x = minX;
+      targets.forEach(function(it) { if (it.x < minX) minX = it.x; });
+      
+      // 元々のY座標が上にある順（上から並んでいる順）に綺麗にソート
+      targets.sort(function(a, b) { return a.y - b.y; });
+      
+      // 最初の一台目のY座標からスタートし、図形の高さ＋間隔を足しながら縦にずらして並べる
+      var currentY = targets[0].y;
+      targets.forEach(function(it) {
+        it.x = minX;
+        it.y = currentY;
+        currentY += it.h + gap; // 図形の高さ ＋ 間隔（一括作成と完全に同じ仕組み！）
       });
     } else if (mode === 'top') {
+      // ➔ 上揃え（横一列に整列）
+      // 選択図形の中で「一番上端」にあるY座標を見つけてそこを軸にする
       var minY = 999999;
-      items.forEach(function(it) {
-        if (selectedItemIds.includes(it.id) && it.y < minY) minY = it.y;
-      });
-      items.forEach(function(it) {
-        if (selectedItemIds.includes(it.id)) it.y = minY;
+      targets.forEach(function(it) { if (it.y < minY) minY = it.y; });
+      
+      // 元々のX座標が左にある順にソート
+      targets.sort(function(a, b) { return a.x - b.x; });
+      
+      // 最初の一台目のX座標からスタートし、図形の幅＋間隔を足しながら横にずらして並べる
+      var currentX = targets[0].x;
+      targets.forEach(function(it) {
+        it.x = currentX;
+        it.y = minY;
+        currentX += it.w + gap; // 図形の幅 ＋ 間隔（一括作成と完全に同じ仕組み！）
       });
     }
     save(); render();
-    document.getElementById("infoBar").textContent = "【整列完了】選択した図形の位置を美しく綺麗に揃えました。";
+    document.getElementById("infoBar").textContent = "【整列完了】選択した図形を重ならないように等間隔で綺麗に整列しました！";
   };
 
   window.applyItemSize = function() {
