@@ -212,6 +212,7 @@
       </div>
 
       <button onclick="toggleEditMode()" id="editModeBtn" class="btn-edit-toggle" style="margin-left:auto;">🔧 レイアウト編集を開始</button>
+      <button onclick="clearCarsBulk()" class="btn-danger" style="height:34px; background:#ea580c;">🧹 車を一括消去</button>
       <button onclick="deleteSelectedItem()" class="btn-danger" style="height:34px;">🗑️ 図形を削除</button>
     </div>
   </section>
@@ -283,6 +284,7 @@
     <div class="form-buttons">
       <button onclick="addCar()" class="btn-success">➕ 新しく場内へ配置</button>
       <button onclick="updateCar()" class="btn-primary">📝 選択中の車を更新（書き換え）</button>
+      <button onclick="clearCar()" class="btn-danger" style="background:#e11d48;">🚗 選択中の車を出庫（消去）</button>
     </div>
   </section>
 
@@ -323,14 +325,29 @@
     </div>
   </details>
 
+  <details class="master-settings" style="background: #f1f5f9; border: 1px solid #cbd5e1;">
+    <summary>📋 車両の移動履歴ログ（直近100件）</summary>
+    <div style="background: #fff; padding: 10px; border-radius: 4px; margin-top: 8px;">
+      <ul id="logList" style="list-style: none; padding: 0; margin: 0; max-height: 160px; overflow-y: auto; font-size: 12px; font-family: monospace; line-height: 1.6; color: #334155;">
+        <li style="color: #94a3b8;">まだ移動履歴はありません。</li>
+      </ul>
+      <div style="margin-top: 8px; text-align: right;">
+        <button onclick="window.clearLogs()" class="btn-sub" style="padding: 3px 10px; font-size: 11px; background: #94a3b8;">ログ履歴をクリア</button>
+      </div>
+    </div>
+  </details>
+
   <div class="info-bar" id="infoBar">通常モード：空マスをタップすると駐車位置が自動セットされます。</div>
 
-  <div style="margin-bottom: 6px; display: flex; gap: 8px; align-items: center; background: #fff; padding: 6px 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+  <div style="margin-bottom: 6px; display: flex; gap: 8px; align-items: center; background: #fff; padding: 6px 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); flex-wrap: wrap;">
     <span style="font-size: 12px; font-weight: bold; color: #475569;">🔎 マップ拡大縮小（スマホ・PC対応）:</span>
     <button onclick="window.changeZoom(0.1)" class="btn-sub" style="padding: 3px 12px; font-size: 11px; background: #0284c7; color: white; border: none;">➕ 拡大</button>
     <button onclick="window.changeZoom(-0.1)" class="btn-sub" style="padding: 3px 12px; font-size: 11px; background: #0284c7; color: white; border: none;">➖ 縮小</button>
     <button onclick="window.changeZoom(0)" class="btn-sub" style="padding: 3px 12px; font-size: 11px; background: #64748b; color: white; border: none;">等倍 (100%)</button>
-    <span id="zoomTxt" style="font-size: 12px; font-weight: bold; color: #0284c7; margin-left: 4px;">100%</span>
+    <span id="zoomTxt" style="font-size: 12px; font-weight: bold; color: #0284c7; margin-left: 4px; margin-right: 15px;">100%</span>
+    
+    <span style="font-size: 12px; font-weight: bold; color: #475569;">📊 分析:</span>
+    <button onclick="window.showStats()" class="btn-success" style="padding: 3px 12px; font-size: 11px; font-weight: bold; background: #10b981;">📊 占有率・容積率を確認</button>
   </div>
 
   <div class="map-wrap">
@@ -358,6 +375,7 @@
 
   var items = [];
   var cars = [];
+  var moveLogs = [];
   var masterTypes = ["GK", "GW", "UE", "CD", "CG", "BRR"];
   var masterStatuses = ["未定", "洗車", "回送", "車検", "計量", "納車", "前にしておきたい車"];
 
@@ -409,6 +427,57 @@
     return y + "-" + m + "-" + day;
   }
 
+  function getTimeLogString() {
+    var now = new Date();
+    var m = now.getMonth() + 1;
+    var d = now.getDate();
+    var h = String(now.getHours()).padStart(2, '0');
+    var min = String(now.getMinutes()).padStart(2, '0');
+    return m + "/" + d + " " + h + ":" + min;
+  }
+
+  function addLog(msg) {
+    moveLogs.unshift(msg);
+    if (moveLogs.length > 100) moveLogs.pop();
+    localStorage.setItem("yard_move_logs", JSON.stringify(moveLogs));
+    renderLogs();
+  }
+
+  function renderLogs() {
+    var el = document.getElementById("logList");
+    if (!el) return;
+    if (moveLogs.length === 0) {
+      el.innerHTML = "<li style='color: #94a3b8;'>まだ移動履歴はありません。</li>";
+      return;
+    }
+    el.innerHTML = moveLogs.map(function(log) {
+      return "<li style='border-bottom: 1px solid #f1f5f9; padding: 2px 0;'>" + log + "</li>";
+    }).join("");
+  }
+
+  window.clearLogs = function() {
+    if (confirm("移動履歴ログをすべて消去しますか？")) {
+      moveLogs = [];
+      localStorage.setItem("yard_move_logs", JSON.stringify(moveLogs));
+      renderLogs();
+    }
+  };
+
+  window.showStats = function() {
+    var totalSlots = items.filter(function(i) { return i.type === "slot"; }).length;
+    var usedSlots = cars.filter(function(c) {
+      return items.some(function(i) { return i.type === "slot" && i.name === c.place; });
+    }).length;
+    var emptySlots = totalSlots - usedSlots;
+    var rate = totalSlots > 0 ? ((usedSlots / totalSlots) * 100).toFixed(1) : "0.0";
+    
+    alert("📊 【場内占有率・容積率データ】\n\n" +
+          "■ 駐車マス総数 : " + totalSlots + " マス\n" +
+          "■ 車両駐車数   : " + usedSlots + " マス\n" +
+          "■ 空きマス数   : " + emptySlots + " マス\n\n" +
+          "➔ 現在の場内占有率 (容積率): " + rate + " %");
+  };
+
   function loadData() {
     try {
       cars = JSON.parse(localStorage.getItem("yard_cars_final")) || [];
@@ -418,9 +487,11 @@
       if (t && t.length > 0) masterTypes = t;
       var s = JSON.parse(localStorage.getItem("m_statuses_final"));
       if (s && s.length > 0) masterStatuses = s;
+      moveLogs = JSON.parse(localStorage.getItem("yard_move_logs")) || [];
     } catch(e) { 
       items = getInitialItems();
       cars = []; 
+      moveLogs = [];
     }
   }
 
@@ -728,8 +799,10 @@
 
     if (paintMode) {
       if (!car) return;
+      var oldStatus = car.status;
       car.status = document.getElementById("paintStatus").value;
       car.date = document.getElementById("paintDate").value;
+      addLog("[" + getTimeLogString() + "] 🎨 簡易色塗: " + car.user + "(" + car.bodyNo + ") [" + place + "] ステータス変更 (" + oldStatus + " ➔ " + car.status + ")");
       save(); render(); return;
     }
 
@@ -760,8 +833,15 @@
       var srcCar = cars.find(function(c){ return c.place === selectedPlace; });
       var destCar = cars.find(function(c){ return c.place === place; });
 
-      if (destCar) { srcCar.place = place; destCar.place = selectedPlace; } 
-      else { srcCar.place = place; }
+      var tStr = getTimeLogString();
+      if (destCar) { 
+        srcCar.place = place; 
+        destCar.place = selectedPlace; 
+        addLog("[" + tStr + "] 🔄 位置入替: " + srcCar.user + "(" + srcCar.bodyNo + ") ⇄ " + destCar.user + "(" + destCar.bodyNo + ") [" + selectedPlace + " ⇄ " + place + "]");
+      } else { 
+        addLog("[" + tStr + "] ➔ 車両移動: " + srcCar.user + "(" + srcCar.bodyNo + ") [" + selectedPlace + " ➔ " + place + "]");
+        srcCar.place = place; 
+      }
       selectedPlace = null; save(); render();
       infoBar.textContent = "通常モード：空マスをタップすると駐車位置が自動セットされます。";
     }
@@ -798,7 +878,7 @@
   }
 
   function startApp() {
-    loadData(); init(); render();
+    loadData(); init(); render(); renderLogs();
     
     var mapEl = document.getElementById("map");
     if (mapEl) {
@@ -1059,6 +1139,7 @@
     if (!user || !bodyNo) { alert("ユーザー名と車体番号を入力してください"); return; }
     if (cars.some(function(c){ return c.place === place; })) { alert("その場所にはすでに車両があります。"); return; }
     cars.push({ id: Date.now(), type: type, user: user, bodyNo: bodyNo, place: place, status: status, date: date });
+    addLog("[" + getTimeLogString() + "] ➕ 新規入場: " + user + "(" + bodyNo + ") ➔ 位置: " + place);
     document.getElementById("userName").value = ""; document.getElementById("bodyNo").value = "";
     save(); render();
   };
@@ -1072,8 +1153,52 @@
     car.bodyNo = document.getElementById("bodyNo").value.trim();
     car.status = document.getElementById("status").value;
     car.date = document.getElementById("actionDate").value;
+    addLog("[" + getTimeLogString() + "] 📝 情報更新: " + car.user + "(" + car.bodyNo + ") [位置: " + selectedPlace + "]");
     selectedPlace = null; save(); render();
     document.getElementById("infoBar").textContent = "通常モード：空マスをタップすると駐車位置が自動セットされます。";
+  };
+
+  window.clearCar = function() {
+    if (!selectedPlace) { alert("車両をタップして選択してください。"); return; }
+    if (confirm("選択中の駐車位置「" + selectedPlace + "」の車両情報を消去して空にしますか？")) {
+      var targetCar = cars.find(function(c){ return c.place === selectedPlace; });
+      if (targetCar) {
+        addLog("[" + getTimeLogString() + "] 🚗 出庫消去: " + targetCar.user + "(" + targetCar.bodyNo + ") [位置: " + selectedPlace + "]");
+      }
+      cars = cars.filter(function(c){ return c.place !== selectedPlace; });
+      selectedPlace = null;
+      document.getElementById("userName").value = "";
+      document.getElementById("bodyNo").value = "";
+      document.getElementById("actionDate").value = "";
+      save(); render();
+      document.getElementById("infoBar").textContent = "通常モード：空マスをタップすると駐車位置が自動セットされます。";
+    }
+  };
+
+  window.clearCarsBulk = function() {
+    if (selectedItemIds.length === 0 && !selectedItemId) { alert("車を消去したいマスをタップするか、範囲ドラッグで選択してください。"); return; }
+    var targets = selectedItemIds.slice();
+    if (selectedItemId && !targets.includes(selectedItemId)) {
+      targets.push(selectedItemId);
+    }
+
+    var targetSlotNames = items.filter(function(i) {
+      return targets.includes(i.id) && i.type === "slot";
+    }).map(function(i) { return i.name; });
+
+    if (targetSlotNames.length === 0) {
+      alert("選択された図形の中に駐車マスがありません。");
+      return;
+    }
+
+    if (confirm("選択された 【 " + targetSlotNames.length + " 個 】 の駐車マスから車両情報のみを一括消去しますか？\n（マス自体は削除されず、中身だけが空になります）")) {
+      addLog("[" + getTimeLogString() + "] 🧹 一括消去: 位置 [" + targetSlotNames.join(", ") + "] の車両をまとめて出庫");
+      cars = cars.filter(function(c){ return !targetSlotNames.includes(c.place); });
+      selectedItemId = null;
+      selectedItemIds = [];
+      save(); render();
+      document.getElementById("infoBar").textContent = "【一括消去完了】選択された駐車マスの車両情報をすべて空にしました。";
+    }
   };
 
   window.addCarsBulk = function() {
@@ -1135,6 +1260,7 @@
     });
 
     if (addedCount > 0) {
+      addLog("[" + getTimeLogString() + "] 📦 一括入場登録: エクセル等からまとめて " + addedCount + "台を自動配置");
       document.getElementById("bulkCarText").value = "";
       save(); 
       render();
