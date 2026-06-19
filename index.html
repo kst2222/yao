@@ -155,11 +155,13 @@
         <label>一括個数</label>
         <input type="number" id="bulkCount" value="1" min="1">
       </div>
-      <div class="input-group" style="min-width: 90px;">
+      <div class="input-group" style="min-width: 120px;">
         <label>一括並び方向</label>
         <select id="bulkDir">
-          <option value="x">横に並べる</option>
-          <option value="y">縦に並べる</option>
+          <option value="x-plus">右横に並べる (▶)</option>
+          <option value="x-minus">左横に並べる (◀)</option>
+          <option value="y-plus">下に並べる (▼)</option>
+          <option value="y-minus">上に並べる (▲)</option>
         </select>
       </div>
       <div class="input-group" style="min-width: 60px; max-width: 65px;">
@@ -179,6 +181,12 @@
         <input type="number" id="editH" placeholder="高さ">
       </div>
       <button onclick="applyItemSize()" class="btn-sub" style="height:34px; background:#0369a1;">サイズ変更</button>
+
+      <div class="input-group" style="min-width: 120px;">
+        <label>📝 選択中の名前変更</label>
+        <input id="editName" placeholder="マスの名前など">
+      </div>
+      <button onclick="applyItemName()" class="btn-sub" style="height:34px; background:#0f766e; color: white;">名前変更</button>
 
       <div class="input-group" style="min-width: 80px;">
         <label>🔄 図形回転</label>
@@ -525,6 +533,7 @@
           selectedItemIds = [item.id];
           document.getElementById("editW").value = item.w;
           document.getElementById("editH").value = item.h;
+          if (document.getElementById("editName")) document.getElementById("editName").value = item.name || "";
           if (document.getElementById("editRotate")) document.getElementById("editRotate").value = item.rotate || 0;
           if (document.getElementById("editWriting")) document.getElementById("editWriting").value = item.writing || "horizontal";
           document.getElementById("infoBar").textContent = "【図形選択中】「" + (item.name || '境界線') + "」を選択中。ドラッグ移動、右下赤つまみで変形可能。";
@@ -555,6 +564,7 @@
     
     document.getElementById("editW").value = item.w;
     document.getElementById("editH").value = item.h;
+    if (document.getElementById("editName")) document.getElementById("editName").value = item.name || "";
     if (document.getElementById("editRotate")) document.getElementById("editRotate").value = item.rotate || 0;
     if (document.getElementById("editWriting")) document.getElementById("editWriting").value = item.writing || "horizontal";
 
@@ -899,10 +909,14 @@
       var currentX = startX;
       var currentY = startY;
       
-      if (dir === "x") {
+      if (dir === "x" || dir === "x-plus") {
         currentX = startX + i * (w + gap);
-      } else {
+      } else if (dir === "x-minus") {
+        currentX = startX - i * (w + gap);
+      } else if (dir === "y" || dir === "y-plus") {
         currentY = startY + i * (h + gap);
+      } else if (dir === "y-minus") {
+        currentY = startY - i * (h + gap);
       }
       
       var newId = baseId + i;
@@ -932,46 +946,52 @@
     save(); render();
   };
 
-  // 💡 【大修正】重ならずに「一括作成と同じ等間隔」でピシッと整列するアルゴリズムへ超進化！
+  window.applyItemName = function() {
+    if (!selectedItemId) { alert("図形をタップして選択してください。"); return; }
+    var item = items.find(function(i){ return i.id === selectedItemId; });
+    if (!item) return;
+    var newName = document.getElementById("editName").value.trim();
+    if (!newName && item.type !== "line") { alert("名前を入力してください。"); return; }
+    
+    var oldName = item.name;
+    item.name = newName;
+
+    if (item.type === "slot") {
+      cars.forEach(function(c) {
+        if (c.place === oldName) {
+          c.place = newName;
+        }
+      });
+    }
+    save(); init(); render();
+    document.getElementById("infoBar").textContent = "【名称変更完了】名前を「" + newName + "」に変更しました。";
+  };
+
   window.alignSelected = function(mode) {
     if (selectedItemIds.length < 2) { alert("ドラッグして囲むか、2個以上の図形を選択してください。"); return; }
     
-    // 現在選択されている図形データだけを抽出
     var targets = items.filter(function(it) { return selectedItemIds.includes(it.id); });
-    // パネルに入力されている「間隔(px)」の数字をそのまま読み込む
     var gap = parseInt(document.getElementById("bulkGap").value) || 0;
 
     if (mode === 'left') {
-      // ➔ 左揃え（縦一列に積み上げ整列）
-      // 選択図形の中で「一番左端」にあるX座標を見つけてそこを軸にする
       var minX = 999999;
       targets.forEach(function(it) { if (it.x < minX) minX = it.x; });
-      
-      // 元々のY座標が上にある順（上から並んでいる順）に綺麗にソート
       targets.sort(function(a, b) { return a.y - b.y; });
-      
-      // 最初の一台目のY座標からスタートし、図形の高さ＋間隔を足しながら縦にずらして並べる
       var currentY = targets[0].y;
       targets.forEach(function(it) {
         it.x = minX;
         it.y = currentY;
-        currentY += it.h + gap; // 図形の高さ ＋ 間隔（一括作成と完全に同じ仕組み！）
+        currentY += it.h + gap;
       });
     } else if (mode === 'top') {
-      // ➔ 上揃え（横一列に整列）
-      // 選択図形の中で「一番上端」にあるY座標を見つけてそこを軸にする
       var minY = 999999;
       targets.forEach(function(it) { if (it.y < minY) minY = it.y; });
-      
-      // 元々のX座標が左にある順にソート
       targets.sort(function(a, b) { return a.x - b.x; });
-      
-      // 最初の一台目のX座標からスタートし、図形の幅＋間隔を足しながら横にずらして並べる
       var currentX = targets[0].x;
       targets.forEach(function(it) {
         it.x = currentX;
         it.y = minY;
-        currentX += it.w + gap; // 図形の幅 ＋ 間隔（一括作成と完全に同じ仕組み！）
+        currentX += it.w + gap;
       });
     }
     save(); render();
