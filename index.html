@@ -87,7 +87,7 @@
   .item.selected-slot { outline: 4px solid #3b82f6; z-index: 40 !important; }
   .item.selected-item { outline: 4px solid #ef4444; z-index: 99 !important; box-shadow: 0 0 15px rgba(239, 68, 68, 0.5); }
 
-  /* ドラッグで形を伸ばすための「リサイズつまみ」 */
+  /* ドラッグで形を伸ばすためのリサイズつまみ */
   .resize-handle {
     position: absolute; right: 0; bottom: 0; width: 14px; height: 14px;
     background: #ef4444; border-radius: 4px 0 4px 0; cursor: se-resize; z-index: 100;
@@ -261,528 +261,544 @@
 </div>
 
 <script>
-// ==========================================
-// 💡 【重要】クラウド・リアルタイム同期の通信URL
-// ==========================================
-var GAS_URL = "https://script.google.com/macros/s/AKfycbzZ-wc9IXWeoX1hCWkz2PUn2z2FyXfOwB_7lIQ5hOBIQ0DFtC0qdpFKTA8ptv5FfA_U/exec"; 
+(function() {
+  // 🌟 【あなたのGASURLを自動埋め込み済み】
+  var GAS_URL = "https://script.google.com/macros/s/AKfycbzZ-wc9IXWeoX1hCWkz2PUn2z2FyXfOwB_7lIQ5hOBIQ0DFtC0qdpFKTA8ptv5FfA_U/exec"; 
+  var ADMIN_PASSWORD = "yao";
 
-var placesDef = [
-  "1-1","1-2","1-3","1-4","1-5","1-6","1-7",
-  "2-1","2-2","2-3","2-4","2-5","2-6","2-7","2-8","2-9","2-10","2-11",
-  "3-1","3-2","3-3","3-4","3-5","3-6","3-7","3-8","3-9","3-10","3-11","3-12","3-13",
-  "4-1","4-2","4-3",
-  "5-1","5-2","5-3","5-4","5-5","5-6","5-7",
-  "6-1","6-2","6-3","6-4","6-5","6-6","6-7",
-  "7-1","7-2","7-3","7-4","7-5","7-6","7-7",
-  "洗車1","洗車2","洗車3", "回送1","回送2","回送3", "車検1","車検2", "納車待ち","出庫口","入庫口"
-];
-
-var items = [];
-var cars = [];
-var masterTypes = ["GK", "GW", "UE", "CD", "CG", "BRR"];
-var masterStatuses = ["未定", "洗車", "回送", "車検", "計量", "納車", "前にしておきたい車"];
-
-var editMode = false;
-var selectedItemId = null;
-var selectedPlace = null;
-var bulkMatchedNo = [];
-var paintMode = false;
-
-function getInitialItems() {
-  var defaultItems = [
-    { id: 1, type: "building", name: "🏢 センター（事務所）", x: 100, y: 10, w: 250, h: 80 },
-    { id: 2, type: "building", name: "🔧 整備場（ドック側エリア）", x: 500, y: 120, w: 1100, h: 490 },
-    { id: 3, type: "building", name: "🅿️ 西側駐車スペース（5〜7列）", x: 100, y: 120, w: 350, h: 510 },
-    { id: 4, type: "line", name: "", x: 500, y: 630, w: 1100, h: 6 },
-    { id: 5, type: "road", name: "🛣️ 通路 / 洗車・回送レーン / 出入口", x: 100, y: 645, w: 1500, h: 150 }
+  var placesDef = [
+    "1-1","1-2","1-3","1-4","1-5","1-6","1-7",
+    "2-1","2-2","2-3","2-4","2-5","2-6","2-7","2-8","2-9","2-10","2-11",
+    "3-1","3-2","3-3","3-4","3-5","3-6","3-7","3-8","3-9","3-10","3-11","3-12","3-13",
+    "4-1","4-2","4-3",
+    "5-1","5-2","5-3","5-4","5-5","5-6","5-7",
+    "6-1","6-2","6-3","6-4","6-5","6-6","6-7",
+    "7-1","7-2","7-3","7-4","7-5","7-6","7-7",
+    "洗車1","洗車2","洗車3", "回送1","回送2","回送3", "車検1","車検2", "納車待ち","出庫口","入庫口"
   ];
-  
-  var idCounter = 3000;
-  placesDef.forEach(function(p) {
-    idCounter++;
-    var x = 0, y = 0;
-    if (p.startsWith("1-")) { x = 500 + Number(p.split("-")[1]) * 85; y = 530; }
-    else if (p.startsWith("2-")) { x = 500 + Number(p.split("-")[1]) * 85; y = 430; }
-    else if (p.startsWith("3-")) { x = 500 + Number(p.split("-")[1]) * 85; y = 290; }
-    else if (p.startsWith("4-")) { x = 500 + Number(p.split("-")[1]) * 85; y = 190; }
-    else if (p.startsWith("5-")) { x = 340; y = 110 + Number(p.split("-")[1]) * 65; }
-    else if (p.startsWith("6-")) { x = 250; y = 110 + Number(p.split("-")[1]) * 65; }
-    else if (p.startsWith("7-")) { x = 160; y = 110 + Number(p.split("-")[1]) * 65; }
-    else if (p.startsWith("洗車")) { x = 600 + (Number(p.replace("洗車", "")) - 1) * 90; y = 650; }
-    else if (p.startsWith("回送")) { x = 600 + (Number(p.replace("回送", "")) - 1) * 90; y = 710; }
-    else if (p.startsWith("車検")) { x = 880 + (Number(p.replace("車検", "")) - 1) * 90; y = 650; }
-    else if (p === "納車待ち") { x = 1060; y = 650; }
-    else if (p === "出庫口") { x = 1160; y = 650; }
-    else if (p === "入庫口") { x = 1160; y = 710; }
-    defaultItems.push({ id: idCounter, type: "slot", name: p, x: x, y: y, w: 82, h: 72 });
-  });
-  return defaultItems;
-}
 
-function getJstDateString(offset) {
-  if (offset === undefined) offset = 0;
-  var d = new Date();
-  if (offset !== 0) d.setDate(d.getDate() + offset);
-  var y = d.getFullYear();
-  var m = String(d.getMonth() + 1).padStart(2, '0');
-  var day = String(d.getDate()).padStart(2, '0');
-  return y + "-" + m + "-" + day;
-}
+  var items = [];
+  var cars = [];
+  var masterTypes = ["GK", "GW", "UE", "CD", "CG", "BRR"];
+  var masterStatuses = ["未定", "洗車", "回送", "車検", "計量", "納車", "前にしておきたい車"];
 
-function loadData() {
-  try {
-    cars = JSON.parse(localStorage.getItem("yard_cars_final")) || [];
-    items = JSON.parse(localStorage.getItem("yard_items_custom_v2"));
-    if (!items || items.length === 0) items = getInitialItems();
-    var t = JSON.parse(localStorage.getItem("m_types_final"));
-    if (t && t.length > 0) masterTypes = t;
-    var s = JSON.parse(localStorage.getItem("m_statuses_final"));
-    if (s && s.length > 0) masterStatuses = s;
-  } catch(e) { 
-    items = getInitialItems();
-    cars = []; 
-  }
-}
+  var editMode = false;
+  var selectedItemId = null;
+  var selectedPlace = null;
+  var bulkMatchedNo = [];
+  var paintMode = false;
 
-function init() {
-  var typeSel = document.getElementById("carType");
-  var statusSel = document.getElementById("status");
-  var paintStatusSel = document.getElementById("paintStatus");
-  var placeSel = document.getElementById("place");
+  // 🌟 【大改造：ホイスティング完全対応】 全ての関数を「標準のfunction宣言」で記述。
+  // これにより読み込み順序にズレが起きても、絶対に「関数が見つからないバグ」が起きなくなります。
 
-  if(!typeSel) return;
-
-  typeSel.innerHTML = masterTypes.map(function(t){ return "<option value='"+t+"'>"+t+"</option>"; }).join("");
-  statusSel.innerHTML = masterStatuses.map(function(s){ return "<option value='"+s+"'>"+s+"</option>"; }).join("");
-  paintStatusSel.innerHTML = masterStatuses.map(function(s){ return "<option value='"+s+"'>"+s+"</option>"; }).join("");
-  
-  var slots = items.filter(function(i){ return i.type === "slot"; }).map(function(i){ return i.name; });
-  placeSel.innerHTML = slots.map(function(s){ return "<option value='"+s+"'>"+s+"</option>"; }).join("");
-
-  document.getElementById("actionDate").value = getJstDateString(0);
-  
-  // 💡 安全対策ガード付きのイベント設定
-  var pStatus = document.getElementById("paintStatus");
-  if(pStatus) pStatus.onchange = function() { if(paintMode) updatePaintModeText(); };
-  var pDate = document.getElementById("paintDate");
-  if(pDate) pDate.onchange = function() { updateDateButtons(); if(paintMode) updatePaintModeText(); };
-
-  setPaintDate(0);
-  renderMasterLists();
-}
-
-function updateDateButtons() {
-  var pDate = document.getElementById("paintDate");
-  if (!pDate) return;
-  var val = pDate.value;
-  var btnToday = document.getElementById("btn-today");
-  var btnTomorrow = document.getElementById("btn-tomorrow");
-  var btnDafter = document.getElementById("btn-dafter");
-  if(btnToday) btnToday.classList.toggle("active", val === getJstDateString(0));
-  if(btnTomorrow) btnTomorrow.classList.toggle("active", val === getJstDateString(1));
-  if(btnDafter) btnDafter.classList.toggle("active", val === getJstDateString(2));
-}
-
-function updatePaintModeText() {
-  var info = document.getElementById("infoBar");
-  if (!info) return;
-  var status = document.getElementById("paintStatus").value;
-  var dateVal = document.getElementById("paintDate").value;
-  var dateStr = "";
-  if (dateVal) {
-    var d = new Date(dateVal);
-    if (!isNaN(d.getTime())) dateStr = "(" + (d.getMonth()+1) + "/" + d.getDate() + ")";
-  }
-  info.textContent = "【🎨 スタンプ中】タップした車を連続で「" + status + " " + dateStr + "」に塗り替えます。";
-}
-
-function render() {
-  var mapEl = document.getElementById("map");
-  if(!mapEl) return;
-  mapEl.innerHTML = "";
-
-  items.forEach(function(item) {
-    var el = document.createElement("div");
-    el.className = "item " + item.type;
+  function getInitialItems() {
+    var defaultItems = [
+      { id: 1, type: "building", name: "🏢 センター（事務所）", x: 100, y: 10, w: 250, h: 80 },
+      { id: 2, type: "building", name: "🔧 整備場（ドック側エリア）", x: 500, y: 120, w: 1100, h: 490 },
+      { id: 3, type: "building", name: "🅿️ 西側駐車スペース（5〜7列）", x: 100, y: 120, w: 350, h: 510 },
+      { id: 4, type: "line", name: "", x: 500, y: 630, w: 1100, h: 6 },
+      { id: 5, type: "road", name: "🛣️ 通路 / 洗車・回送レーン / 出入口", x: 100, y: 645, w: 1500, h: 150 }
+    ];
     
-    if (editMode && item.id === selectedItemId) el.className += " selected-item";
-    if (!editMode && item.type === "slot" && selectedPlace === item.name) el.className += " selected-slot";
-
-    el.style.left = item.x + "px";
-    el.style.top = item.y + "px";
-    el.style.width = item.w + "px";
-    el.style.height = item.h + "px";
-
-    if (item.type === "slot") {
-      var car = cars.find(function(c){ return c.place === item.name; });
-      if (car && bulkMatchedNo.includes(car.bodyNo)) el.className += " today-match";
-
-      var dateStr = "";
-      if (car && car.date && car.date.trim() !== "") {
-        var d = new Date(car.date);
-        if (!isNaN(d.getTime())) dateStr = "(" + (d.getMonth()+1) + "/" + d.getDate() + ")";
-      }
-
-      el.innerHTML = "<div class='slot-label'>" + item.name + "</div>" +
-        (car 
-          ? "<div class='car " + getStatusColorClass(car.status) + "'>" +
-              "<span style='font-size:9px; opacity:0.8;'>[" + car.type + "] " + car.user + "</span>" +
-              "<span style='font-size:11px; letter-spacing:0.3px;'>" + car.bodyNo + "</span>" +
-              "<span class='car-date'>" + car.status + dateStr + "</span>" +
-             "</div>"
-          : "<div class='empty'>空</div>");
-    } else {
-      el.innerHTML = item.name || "";
-    }
-
-    if (editMode && item.id === selectedItemId) {
-      var handle = document.createElement("div");
-      handle.className = "resize-handle";
-      handle.onmousedown = function(ev) { initResize(ev, item, el); };
-      handle.ontouchstart = function(ev) { initResize(ev, item, el); };
-      el.appendChild(handle);
-    }
-
-    el.onclick = function(e) {
-      e.stopPropagation();
-      if (editMode) {
-        selectedItemId = item.id;
-        document.getElementById("editW").value = item.w;
-        document.getElementById("editH").value = item.h;
-        document.getElementById("infoBar").textContent = "【図形選択中】「" + (item.name || '境界線') + "」を選択中。ドラッグ移動、右下赤つまみで変形可能。";
-        render();
-        return;
-      }
-      if (item.type === "slot") handleSlotClick(item.name);
-    };
-
-    el.ondblclick = function(e) {
-      e.stopPropagation();
-      if(editMode || item.type !== "slot") return;
-      var carData = cars.find(function(c){ return c.place === item.name; });
-      if (carData && confirm("【出庫】\n" + carData.user + " [" + carData.bodyNo + "] を消去しますか？")) {
-        cars = cars.filter(function(c){ return c.place !== item.name; }); save(); render();
-      }
-    };
-
-    el.onmousedown = function(ev) { dragStart(ev, item, el); };
-    el.ontouchstart = function(ev) { dragStart(ev, item, el); };
-    mapEl.appendChild(el);
-  });
-}
-
-function dragStart(e, item, el) {
-  if (editMode && e.target.className === 'resize-handle') return;
-  if (!editMode) return;
-  selectedItemId = item.id;
-  
-  document.getElementById("editW").value = item.w;
-  document.getElementById("editH").value = item.h;
-
-  var isTouch = e.type === 'touchstart';
-  var sx = isTouch ? e.touches[0].clientX : e.clientX;
-  var sy = isTouch ? e.touches[0].clientY : e.clientY;
-  var ox = item.x, oy = item.y;
-
-  function move(ev) {
-    var mx = isTouch ? ev.touches[0].clientX : ev.clientX;
-    var my = isTouch ? ev.touches[0].clientY : ev.clientY;
-    item.x = ox + mx - sx; item.y = oy + my - sy;
-    el.style.left = item.x + "px"; el.style.top = item.y + "px";
+    var idCounter = 3000;
+    placesDef.forEach(function(p) {
+      idCounter++;
+      var x = 0, y = 0;
+      if (p.startsWith("1-")) { x = 500 + Number(p.split("-")[1]) * 85; y = 530; }
+      else if (p.startsWith("2-")) { x = 500 + Number(p.split("-")[1]) * 85; y = 430; }
+      else if (p.startsWith("3-")) { x = 500 + Number(p.split("-")[1]) * 85; y = 290; }
+      else if (p.startsWith("4-")) { x = 500 + Number(p.split("-")[1]) * 85; y = 190; }
+      else if (p.startsWith("5-")) { x = 340; y = 110 + Number(p.split("-")[1]) * 65; }
+      else if (p.startsWith("6-")) { x = 250; y = 110 + Number(p.split("-")[1]) * 65; }
+      else if (p.startsWith("7-")) { x = 160; y = 110 + Number(p.split("-")[1]) * 65; }
+      else if (p.startsWith("洗車")) { x = 600 + (Number(p.replace("洗車", "")) - 1) * 90; y = 650; }
+      else if (p.startsWith("回送")) { x = 600 + (Number(p.replace("回送", "")) - 1) * 90; y = 710; }
+      else if (p.startsWith("車検")) { x = 880 + (Number(p.replace("車検", "")) - 1) * 90; y = 650; }
+      else if (p === "納車待ち") { x = 1060; y = 650; }
+      else if (p === "出庫口") { x = 1160; y = 650; }
+      else if (p === "入庫口") { x = 1160; y = 710; }
+      defaultItems.push({ id: idCounter, type: "slot", name: p, x: x, y: y, w: 82, h: 72 });
+    });
+    return defaultItems;
   }
 
-  function up() {
-    save(); render(); 
-    document.removeEventListener(isTouch ? "touchmove" : "mousemove", move);
-    document.removeEventListener(isTouch ? "touchend" : "mouseup", up);
+  function getJstDateString(offset) {
+    if (offset === undefined) offset = 0;
+    var d = new Date();
+    if (offset !== 0) d.setDate(d.getDate() + offset);
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    return y + "-" + m + "-" + day;
   }
-  document.addEventListener(isTouch ? "touchmove" : "mousemove", move, {passive: false});
-  document.addEventListener(isTouch ? "touchend" : "mouseup", up);
-}
 
-function initResize(e, item, el) {
-  e.stopPropagation(); e.preventDefault();
-  var isTouch = e.type === 'touchstart';
-  var sx = isTouch ? e.touches[0].clientX : e.clientX;
-  var sy = isTouch ? e.touches[0].clientY : e.clientY;
-  var sw = item.w, sh = item.h;
+  function loadData() {
+    try {
+      cars = JSON.parse(localStorage.getItem("yard_cars_final")) || [];
+      items = JSON.parse(localStorage.getItem("yard_items_custom_v2"));
+      if (!items || items.length === 0) items = getInitialItems();
+      var t = JSON.parse(localStorage.getItem("m_types_final"));
+      if (t && t.length > 0) masterTypes = t;
+      var s = JSON.parse(localStorage.getItem("m_statuses_final"));
+      if (s && s.length > 0) masterStatuses = s;
+    } catch(e) { 
+      items = getInitialItems();
+      cars = []; 
+    }
+  }
 
-  function move(ev) {
-    var mx = isTouch ? ev.touches[0].clientX : ev.clientX;
-    var my = isTouch ? ev.touches[0].clientY : ev.clientY;
-    item.w = Math.max(30, sw + mx - sx);
-    item.h = Math.max(20, sh + my - sy);
-    el.style.width = item.w + "px"; el.style.height = item.h + "px";
+  function init() {
+    var typeSel = document.getElementById("carType");
+    var statusSel = document.getElementById("status");
+    var paintStatusSel = document.getElementById("paintStatus");
+    var placeSel = document.getElementById("place");
+
+    if(!typeSel) return;
+
+    typeSel.innerHTML = masterTypes.map(function(t){ return "<option value='"+t+"'>"+t+"</option>"; }).join("");
+    statusSel.innerHTML = masterStatuses.map(function(s){ return "<option value='"+s+"'>"+s+"</option>"; }).join("");
+    paintStatusSel.innerHTML = masterStatuses.map(function(s){ return "<option value='"+s+"'>"+s+"</option>"; }).join("");
+    
+    var slots = items.filter(function(i){ return i.type === "slot"; }).map(function(i){ return i.name; });
+    placeSel.innerHTML = slots.map(function(s){ return "<option value='"+s+"'>"+s+"</option>"; }).join("");
+
+    document.getElementById("actionDate").value = getJstDateString(0);
+    
+    var pStatus = document.getElementById("paintStatus");
+    if(pStatus) pStatus.onchange = function() { if(paintMode) updatePaintModeText(); };
+    var pDate = document.getElementById("paintDate");
+    if(pDate) pDate.onchange = function() { updateDateButtons(); if(paintMode) updatePaintModeText(); };
+
+    setPaintDate(0);
+    renderMasterLists();
+  }
+
+  function updateDateButtons() {
+    var pDate = document.getElementById("paintDate");
+    if (!pDate) return;
+    var val = pDate.value;
+    var btnToday = document.getElementById("btn-today");
+    var btnTomorrow = document.getElementById("btn-tomorrow");
+    var btnDafter = document.getElementById("btn-dafter");
+    if(btnToday) btnToday.classList.toggle("active", val === getJstDateString(0));
+    if(btnTomorrow) btnTomorrow.classList.toggle("active", val === getJstDateString(1));
+    if(btnDafter) btnDafter.classList.toggle("active", val === getJstDateString(2));
+  }
+
+  function updatePaintModeText() {
+    var info = document.getElementById("infoBar");
+    if (!info) return;
+    var status = document.getElementById("paintStatus").value;
+    var dateVal = document.getElementById("paintDate").value;
+    var dateStr = "";
+    if (dateVal) {
+      var d = new Date(dateVal);
+      if (!isNaN(d.getTime())) dateStr = "(" + (d.getMonth()+1) + "/" + d.getDate() + ")";
+    }
+    info.textContent = "【🎨 スタンプ中】タップした車を連続で「" + status + " " + dateStr + "」に塗り替えます。";
+  }
+
+  function setPaintDate(offset) {
+    var pDate = document.getElementById("paintDate");
+    if(pDate) pDate.value = getJstDateString(offset);
+    updateDateButtons(); if(paintMode) updatePaintModeText();
+  }
+
+  function render() {
+    var mapEl = document.getElementById("map");
+    if(!mapEl) return;
+    mapEl.innerHTML = "";
+
+    items.forEach(function(item) {
+      var el = document.createElement("div");
+      el.className = "item " + item.type;
+      
+      if (editMode && item.id === selectedItemId) el.className += " selected-item";
+      if (!editMode && item.type === "slot" && selectedPlace === item.name) el.className += " selected-slot";
+
+      el.style.left = item.x + "px";
+      el.style.top = item.y + "px";
+      el.style.width = item.w + "px";
+      el.style.height = item.h + "px";
+
+      if (item.type === "slot") {
+        var car = cars.find(function(c){ return c.place === item.name; });
+        if (car && bulkMatchedNo.includes(car.bodyNo)) el.className += " today-match";
+
+        var dateStr = "";
+        if (car && car.date && car.date.trim() !== "") {
+          var d = new Date(car.date);
+          if (!isNaN(d.getTime())) dateStr = "(" + (d.getMonth()+1) + "/" + d.getDate() + ")";
+        }
+
+        el.innerHTML = "<div class='slot-label'>" + item.name + "</div>" +
+          (car 
+            ? "<div class='car " + getStatusColorClass(car.status) + "'>" +
+                "<span style='font-size:9px; opacity:0.8;'>[" + car.type + "] " + car.user + "</span>" +
+                "<span style='font-size:11px; letter-spacing:0.3px;'>" + car.bodyNo + "</span>" +
+                "<span class='car-date'>" + car.status + dateStr + "</span>" +
+               "</div>"
+            : "<div class='empty'>空</div>");
+      } else {
+        el.innerHTML = item.name || "";
+      }
+
+      if (editMode && item.id === selectedItemId) {
+        var handle = document.createElement("div");
+        handle.className = "resize-handle";
+        handle.onmousedown = function(ev) { initResize(ev, item, el); };
+        handle.ontouchstart = function(ev) { initResize(ev, item, el); };
+        el.appendChild(handle);
+      }
+
+      el.onclick = function(e) {
+        e.stopPropagation();
+        if (editMode) {
+          selectedItemId = item.id;
+          document.getElementById("editW").value = item.w;
+          document.getElementById("editH").value = item.h;
+          document.getElementById("infoBar").textContent = "【図形選択中】「" + (item.name || '境界線') + "」を選択中。ドラッグ移動、右下赤つまみで変形可能。";
+          render();
+          return;
+        }
+        if (item.type === "slot") handleSlotClick(item.name);
+      };
+
+      el.ondblclick = function(e) {
+        e.stopPropagation();
+        if(editMode || item.type !== "slot") return;
+        var carData = cars.find(function(c){ return c.place === item.name; });
+        if (carData && confirm("【出庫】\n" + carData.user + " [" + carData.bodyNo + "] を消去しますか？")) {
+          cars = cars.filter(function(c){ return c.place !== item.name; }); save(); render();
+        }
+      };
+
+      el.onmousedown = function(ev) { dragStart(ev, item, el); };
+      el.ontouchstart = function(ev) { dragStart(ev, item, el); };
+      mapEl.appendChild(el);
+    });
+  }
+
+  function dragStart(e, item, el) {
+    if (editMode && e.target.className === 'resize-handle') return;
+    if (!editMode) return;
+    selectedItemId = item.id;
+    
     document.getElementById("editW").value = item.w;
     document.getElementById("editH").value = item.h;
-  }
 
-  function up() {
-    save(); render();
-    document.removeEventListener(isTouch ? "touchmove" : "mousemove", move);
-    document.removeEventListener(isTouch ? "touchend" : "mouseup", up);
-  }
-  document.addEventListener(isTouch ? "touchmove" : "mousemove", move, {passive: false});
-  document.addEventListener(isTouch ? "touchend" : "mouseup", up);
-}
+    var isTouch = e.type === 'touchstart';
+    var sx = isTouch ? e.touches[0].clientX : e.clientX;
+    var sy = isTouch ? e.touches[0].clientY : e.clientY;
+    var ox = item.x, oy = item.y;
 
-function getStatusColorClass(status) {
-  if (status === "洗車") return "status-wash";
-  if (status === "回送") return "status-transfer";
-  if (status === "車検") return "status-inspection";
-  if (status === "計量") return "status-scale";
-  if (status === "納車") return "status-delivery";
-  if (status === "前にしておきたい車") return "status-front";
-  return "status-other";
-}
-
-function handleSlotClick(place) {
-  var car = cars.find(function(c){ return c.place === place; });
-  var infoBar = document.getElementById("infoBar");
-
-  if (paintMode) {
-    if (!car) return;
-    car.status = document.getElementById("paintStatus").value;
-    car.date = document.getElementById("paintDate").value;
-    save(); render(); return;
-  }
-
-  if (!selectedPlace) {
-    if (!car) {
-      document.getElementById("place").value = place;
-      infoBar.textContent = "【空マス選択】位置「" + place + "」を選択。上のフォームで新規登録可能。";
-      return;
-    }
-    selectedPlace = place;
-    document.getElementById("carType").value = car.type;
-    document.getElementById("userName").value = car.user;
-    document.getElementById("bodyNo").value = car.bodyNo;
-    document.getElementById("status").value = car.status;
-    document.getElementById("actionDate").value = car.date || "";
-    infoBar.textContent = "【車両選択中】" + car.user + " (" + car.bodyNo + ") ➔ 移動は別のマスをタップ。変更は上で変更して「更新」";
-    render();
-  } else {
-    if (selectedPlace === place) { 
-      selectedPlace = null; 
-      document.getElementById("userName").value = "";
-      document.getElementById("bodyNo").value = "";
-      document.getElementById("actionDate").value = getJstDateString(0);
-      infoBar.textContent = "通常モード：空マスをタップすると駐車位置が自動セットされます。";
-      render(); return; 
+    function move(ev) {
+      var mx = isTouch ? ev.touches[0].clientX : ev.clientX;
+      var my = isTouch ? ev.touches[0].clientY : ev.clientY;
+      item.x = ox + mx - sx; item.y = oy + my - sy;
+      el.style.left = item.x + "px"; el.style.top = item.y + "px";
     }
 
-    var srcCar = cars.find(function(c){ return c.place === selectedPlace; });
-    var destCar = cars.find(function(c){ return c.place === place; });
-
-    if (destCar) { srcCar.place = place; destCar.place = selectedPlace; } 
-    else { srcCar.place = place; }
-    selectedPlace = null; save(); render();
-    infoBar.textContent = "通常モード：空マスをタップすると駐車位置が自動セットされます。";
+    function up() {
+      save(); render(); 
+      document.removeEventListener(isTouch ? "touchmove" : "mousemove", move);
+      document.removeEventListener(isTouch ? "touchend" : "mouseup", up);
+    }
+    document.addEventListener(isTouch ? "touchmove" : "mousemove", move, {passive: false});
+    document.addEventListener(isTouch ? "touchend" : "mouseup", up);
   }
-}
 
-function renderMasterLists() {
-  document.getElementById("typeList").innerHTML = masterTypes.map(function(t,i){ return "<li>"+t+" <button class='btn-del' onclick='window.deleteMasterItem(\"type\","+i+")'>削除</button></li>"; }).join("");
-  document.getElementById("statusList").innerHTML = masterStatuses.map(function(s,i){ return "<li>"+s+" <button class='btn-del' onclick='window.deleteMasterItem(\"status\","+i+")'>削除</button></li>"; }).join("");
-}
+  function initResize(e, item, el) {
+    e.stopPropagation(); e.preventDefault();
+    var isTouch = e.type === 'touchstart';
+    var sx = isTouch ? e.touches[0].clientX : e.clientX;
+    var sy = isTouch ? e.touches[0].clientY : e.clientY;
+    var sw = item.w, sh = item.h;
 
-function save() { 
-  localStorage.setItem("yard_cars_final", JSON.stringify(cars)); 
-  localStorage.setItem("yard_items_custom_v2", JSON.stringify(items)); 
-  if (GAS_URL && GAS_URL.trim() !== "") {
-    fetch(GAS_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify({ method: "SAVE", cars: cars, items: items })
-    }).catch(function(err){ console.error("クラウド送信失敗:", err); });
+    function move(ev) {
+      var mx = isTouch ? ev.touches[0].clientX : ev.clientX;
+      var my = isTouch ? ev.touches[0].clientY : ev.clientY;
+      item.w = Math.max(30, sw + mx - sx);
+      item.h = Math.max(20, sh + my - sy);
+      el.style.width = item.w + "px"; el.style.height = item.h + "px";
+      document.getElementById("editW").value = item.w;
+      document.getElementById("editH").value = item.h;
+    }
+
+    function up() {
+      save(); render();
+      document.removeEventListener(isTouch ? "touchmove" : "mousemove", move);
+      document.removeEventListener(isTouch ? "touchend" : "mouseup", up);
+    }
+    document.addEventListener(isTouch ? "touchmove" : "mousemove", move, {passive: false});
+    document.addEventListener(isTouch ? "touchend" : "mouseup", up);
   }
-}
 
-function syncFromCloud() {
-  if (!GAS_URL || GAS_URL.trim() === "" || editMode) return;
-  fetch(GAS_URL)
-    .then(function(res){ return res.json(); })
-    .then(function(data) {
-      if (data.cars) cars = data.cars;
-      if (data.items) items = data.items;
-      localStorage.setItem("yard_cars_final", JSON.stringify(cars));
-      localStorage.setItem("yard_items_custom_v2", JSON.stringify(items));
+  function getStatusColorClass(status) {
+    if (status === "洗車") return "status-wash";
+    if (status === "回送") return "status-transfer";
+    if (status === "車検") return "status-inspection";
+    if (status === "計量") return "status-scale";
+    if (status === "納車") return "status-delivery";
+    if (status === "前にしておきたい車") return "status-front";
+    return "status-other";
+  }
+
+  function handleSlotClick(place) {
+    var car = cars.find(function(c){ return c.place === place; });
+    var infoBar = document.getElementById("infoBar");
+
+    if (paintMode) {
+      if (!car) return;
+      car.status = document.getElementById("paintStatus").value;
+      car.date = document.getElementById("paintDate").value;
+      save(); render(); return;
+    }
+
+    if (!selectedPlace) {
+      if (!car) {
+        document.getElementById("place").value = place;
+        infoBar.textContent = "【空マス選択】位置「" + place + "」を選択。上のフォームで新規登録可能。";
+        return;
+      }
+      selectedPlace = place;
+      document.getElementById("carType").value = car.type;
+      document.getElementById("userName").value = car.user;
+      document.getElementById("bodyNo").value = car.bodyNo;
+      document.getElementById("status").value = car.status;
+      document.getElementById("actionDate").value = car.date || "";
+      infoBar.textContent = "【車両選択中】" + car.user + " (" + car.bodyNo + ") ➔ 移動は別のマスをタップ。変更は上で変更して「更新」";
       render();
-    }).catch(function(err){ console.error("同期失敗:", err); });
-}
-
-function startApp() {
-  loadData(); init(); render();
-  if (GAS_URL && GAS_URL.trim() !== "") {
-    syncFromCloud(); setInterval(syncFromCloud, 3000); 
-  }
-  var sInput = document.getElementById("search");
-  if (sInput) {
-    sInput.addEventListener("input", function(e) {
-      var q = e.target.value.trim().toLowerCase();
-      document.querySelectorAll(".slot").forEach(function(s){ s.classList.remove("highlight"); });
-      if (!q) return;
-      var hit = cars.find(function(c){ return c.user.toLowerCase().includes(q) || c.bodyNo.toLowerCase().includes(q); });
-      if (hit) {
-        var slot = document.querySelector("[data-place='" + hit.place + "']");
-        if (slot) { slot.classList.add("highlight"); slot.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" }); }
+    } else {
+      if (selectedPlace === place) { 
+        selectedPlace = null; 
+        document.getElementById("userName").value = "";
+        document.getElementById("bodyNo").value = "";
+        document.getElementById("actionDate").value = getJstDateString(0);
+        infoBar.textContent = "通常モード：空マスをタップすると駐車位置が自動セットされます。";
+        render(); return; 
       }
-    });
+
+      var srcCar = cars.find(function(c){ return c.place === selectedPlace; });
+      var destCar = cars.find(function(c){ return c.place === place; });
+
+      if (destCar) { srcCar.place = place; destCar.place = selectedPlace; } 
+      else { srcCar.place = place; }
+      selectedPlace = null; save(); render();
+      infoBar.textContent = "通常モード：空マスをタップすると駐車位置が自動セットされます。";
+    }
   }
-}
 
-// 💡 確実な起動チェックループ
-var checkExist = setInterval(function() {
-   if (document.getElementById("map")) { startApp(); clearInterval(checkExist); }
-}, 50);
-
-// ==========================================
-// 🌟 【最重要】HTMLボタンと関数をwindowに直接結合（エラーでも絶対に眠らないスイッチ）
-// ==========================================
-window.toggleEditMode = function() {
-  editMode = !editMode; paintMode = false; selectedPlace = null; selectedItemId = null;
-  document.getElementById("paintModeBtn").textContent = "🎨 スタンプモードを開始する";
-  document.getElementById("paintModeBtn").classList.remove("active");
-  var btn = document.getElementById("editModeBtn");
-  var info = document.getElementById("infoBar");
-  var map = document.getElementById("map");
-  if (editMode) {
-    btn.textContent = "🛑 レイアウト編集を終了"; btn.classList.add("active"); map.classList.add("edit-active");
-    info.className = "info-bar edit-mode"; info.textContent = "【🔧 編集モード】図形を移動・追加・削除・リサイズできます。";
-  } else {
-    btn.textContent = "🔧 レイアウト編集を開始"; btn.classList.remove("active"); map.classList.remove("edit-active");
-    info.className = "info-bar"; info.textContent = "通常モード：空マスをタップすると駐車位置が自動セットされます。";
-    init(); 
+  function renderMasterLists() {
+    document.getElementById("typeList").innerHTML = masterTypes.map(function(t,i){ return "<li>"+t+" <button class='btn-del' onclick='window.deleteMasterItem(\"type\","+i+")'>削除</button></li>"; }).join("");
+    document.getElementById("statusList").innerHTML = masterStatuses.map(function(s,i){ return "<li>"+s+" <button class='btn-del' onclick='window.deleteMasterItem(\"status\","+i+")'>削除</button></li>"; }).join("");
   }
-  render();
-};
 
-window.addItem = function() {
-  var type = document.getElementById("addType").value;
-  var name = document.getElementById("addName").value.trim();
-  if (!name && type !== "line") { alert("名前を入力してください"); return; }
-  var w = 120, h = 80;
-  if (type === "slot") { w = 82; h = 72; }
-  if (type === "line") { w = 300; h = 6; name = ""; }
-  if (type === "road") { w = 400; h = 100; }
-  items.push({ id: Date.now(), type: type, name: name, x: 200, y: 200, w: w, h: h });
-  document.getElementById("addName").value = "";
-  save(); init(); render();
-};
-
-window.applyItemSize = function() {
-  if (!selectedItemId) { alert("図形を選択してください。"); return; }
-  var item = items.find(function(i){ return i.id === selectedItemId; });
-  if (!item) return;
-  var wVal = Number(document.getElementById("editW").value);
-  var hVal = Number(document.getElementById("editH").value);
-  if (wVal > 0) item.w = wVal;
-  if (hVal > 0) item.h = hVal;
-  save(); init(); render();
-};
-
-window.deleteSelectedItem = function() {
-  if (!selectedItemId) { alert("図形を選択してください。"); return; }
-  var item = items.find(function(i){ return i.id === selectedItemId; });
-  if (confirm("「" + (item.name || '境界線') + "」を削除しますか？")) {
-    items = items.filter(function(i){ return i.id !== selectedItemId; });
-    if (item.type === "slot") cars = cars.filter(function(c){ return c.place !== item.name; });
-    selectedItemId = null; save(); init(); render();
+  function save() { 
+    localStorage.setItem("yard_cars_final", JSON.stringify(cars)); 
+    localStorage.setItem("yard_items_custom_v2", JSON.stringify(items)); 
+    if (GAS_URL && GAS_URL.trim() !== "") {
+      fetch(GAS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ method: "SAVE", cars: cars, items: items })
+      }).catch(function(err){ console.error("クラウド送信失敗:", err); });
+    }
   }
-};
 
-window.addCar = function() {
-  var type = document.getElementById("carType").value;
-  var user = document.getElementById("userName").value.trim();
-  var bodyNo = document.getElementById("bodyNo").value.trim();
-  var status = document.getElementById("status").value;
-  var date = document.getElementById("actionDate").value;
-  var place = document.getElementById("place").value;
-  if (!user || !bodyNo) { alert("ユーザー名と車体番号を入力してください"); return; }
-  if (cars.some(function(c){ return c.place === place; })) { alert("その場所にはすでに車両があります。"); return; }
-  cars.push({ id: Date.now(), type: type, user: user, bodyNo: bodyNo, place: place, status: status, date: date });
-  document.getElementById("userName").value = ""; document.getElementById("bodyNo").value = "";
-  save(); render();
-};
+  function syncFromCloud() {
+    if (!GAS_URL || GAS_URL.trim() === "" || editMode) return;
+    fetch(GAS_URL)
+      .then(function(res){ return res.json(); })
+      .then(function(data) {
+        if (data.cars) cars = data.cars;
+        if (data.items) items = data.items;
+        localStorage.setItem("yard_cars_final", JSON.stringify(cars));
+        localStorage.setItem("yard_items_custom_v2", JSON.stringify(items));
+        render();
+      }).catch(function(err){ console.error("同期失敗:", err); });
+  }
 
-window.updateCar = function() {
-  if (!selectedPlace) { alert("車両をタップして選択してください。"); return; }
-  var car = cars.find(function(c){ return c.place === selectedPlace; });
-  if (!car) return;
-  car.type = document.getElementById("carType").value;
-  car.user = document.getElementById("userName").value.trim();
-  car.bodyNo = document.getElementById("bodyNo").value.trim();
-  car.status = document.getElementById("status").value;
-  car.date = document.getElementById("actionDate").value;
-  selectedPlace = null; save(); render();
-  document.getElementById("infoBar").textContent = "通常モード：空マスをタップすると駐車位置が自動セットされます。";
-};
+  function startApp() {
+    loadData(); init(); render();
+    if (GAS_URL && GAS_URL.trim() !== "") {
+      syncFromCloud(); setInterval(syncFromCloud, 3000); 
+    }
+    var sInput = document.getElementById("search");
+    if (sInput) {
+      sInput.addEventListener("input", function(e) {
+        var q = e.target.value.trim().toLowerCase();
+        document.querySelectorAll(".slot").forEach(function(s){ s.classList.remove("highlight"); });
+        if (!q) return;
+        var hit = cars.find(function(c){ return c.user.toLowerCase().includes(q) || c.bodyNo.toLowerCase().includes(q); });
+        if (hit) {
+          var slot = document.querySelector("[data-place='" + hit.place + "']");
+          if (slot) { slot.classList.add("highlight"); slot.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" }); }
+        }
+      });
+    }
+  }
 
-window.togglePaintMode = function() {
-  if (editMode) return;
-  paintMode = !paintMode;
-  var btn = document.getElementById("paintModeBtn");
-  if (paintMode) {
-    selectedPlace = null; btn.textContent = "🛑 スタンプモードを終了する"; btn.classList.add("active");
-    document.getElementById("infoBar").classList.add("painting-mode"); updatePaintModeText();
-  } else {
-    btn.textContent = "🎨 スタンプモードを開始する"; btn.classList.remove("active");
-    document.getElementById("infoBar").classList.remove("painting-mode");
+  // 🌟 各関数のwindowバインド（通常のfunction宣言なので、巻き上げにより確実に代入されます）
+  window.toggleEditMode = function() {
+    if (!editMode) {
+      var pw = prompt("管理者パスワードを入力してください:");
+      if (pw !== ADMIN_PASSWORD) {
+        alert("パスワードが違います。レイアウトの編集権限がありません。");
+        return;
+      }
+    }
+    editMode = !editMode; paintMode = false; selectedPlace = null; selectedItemId = null;
+    document.getElementById("paintModeBtn").textContent = "🎨 スタンプモードを開始する";
+    document.getElementById("paintModeBtn").classList.remove("active");
+    var btn = document.getElementById("editModeBtn");
+    var info = document.getElementById("infoBar");
+    var map = document.getElementById("map");
+    if (editMode) {
+      btn.textContent = "🛑 レイアウト編集を終了"; btn.classList.add("active"); map.classList.add("edit-active");
+      info.className = "info-bar edit-mode"; info.textContent = "【🔧 編集モード】図形を移動・追加・削除・リサイズできます。";
+    } else {
+      btn.textContent = "🔧 レイアウト編集を開始"; btn.classList.remove("active"); map.classList.remove("edit-active");
+      info.className = "info-bar"; info.textContent = "通常モード：空マスをタップすると駐車位置が自動セットされます。";
+      init(); 
+    }
+    render();
+  };
+
+  window.addItem = function() {
+    var type = document.getElementById("addType").value;
+    var name = document.getElementById("addName").value.trim();
+    if (!name && type !== "line") { alert("名前を入力してください"); return; }
+    var w = 120, h = 80;
+    if (type === "slot") { w = 82; h = 72; }
+    if (type === "line") { w = 300; h = 6; name = ""; }
+    if (type === "road") { w = 400; h = 100; }
+    items.push({ id: Date.now(), type: type, name: name, x: 200, y: 200, w: w, h: h });
+    document.getElementById("addName").value = "";
+    save(); init(); render();
+  };
+
+  window.applyItemSize = function() {
+    if (!selectedItemId) { alert("図形を選択してください。"); return; }
+    var item = items.find(function(i){ return i.id === selectedItemId; });
+    if (!item) return;
+    var wVal = Number(document.getElementById("editW").value);
+    var hVal = Number(document.getElementById("editH").value);
+    if (wVal > 0) item.w = wVal;
+    if (hVal > 0) item.h = hVal;
+    save(); init(); render();
+  };
+
+  window.deleteSelectedItem = function() {
+    if (!selectedItemId) { alert("図形を選択してください。"); return; }
+    var item = items.find(function(i){ return i.id === selectedItemId; });
+    if (confirm("「" + (item.name || '境界線') + "」を削除しますか？")) {
+      items = items.filter(function(i){ return i.id !== selectedItemId; });
+      if (item.type === "slot") cars = cars.filter(function(c){ return c.place !== item.name; });
+      selectedItemId = null; save(); init(); render();
+    }
+  };
+
+  window.addCar = function() {
+    var type = document.getElementById("carType").value;
+    var user = document.getElementById("userName").value.trim();
+    var bodyNo = document.getElementById("bodyNo").value.trim();
+    var status = document.getElementById("status").value;
+    var date = document.getElementById("actionDate").value;
+    var place = document.getElementById("place").value;
+    if (!user || !bodyNo) { alert("ユーザー名と車体番号を入力してください"); return; }
+    if (cars.some(function(c){ return c.place === place; })) { alert("その場所にはすでに車両があります。"); return; }
+    cars.push({ id: Date.now(), type: type, user: user, bodyNo: bodyNo, place: place, status: status, date: date });
+    document.getElementById("userName").value = ""; document.getElementById("bodyNo").value = "";
+    save(); render();
+  };
+
+  window.updateCar = function() {
+    if (!selectedPlace) { alert("車両をタップして選択してください。"); return; }
+    var car = cars.find(function(c){ return c.place === selectedPlace; });
+    if (!car) return;
+    car.type = document.getElementById("carType").value;
+    car.user = document.getElementById("userName").value.trim();
+    car.bodyNo = document.getElementById("bodyNo").value.trim();
+    car.status = document.getElementById("status").value;
+    car.date = document.getElementById("actionDate").value;
+    selectedPlace = null; save(); render();
     document.getElementById("infoBar").textContent = "通常モード：空マスをタップすると駐車位置が自動セットされます。";
-  }
-  render();
-};
+  };
 
-window.setPaintDate = function(offset) {
-  var pDate = document.getElementById("paintDate");
-  if(pDate) pDate.value = getJstDateString(offset);
-  updateDateButtons(); if(paintMode) updatePaintModeText();
-};
+  window.togglePaintMode = function() {
+    if (editMode) return;
+    paintMode = !paintMode;
+    var btn = document.getElementById("paintModeBtn");
+    if (paintMode) {
+      selectedPlace = null; btn.textContent = "🛑 スタンプモードを終了する"; btn.classList.add("active");
+      document.getElementById("infoBar").classList.add("painting-mode"); updatePaintModeText();
+    } else {
+      btn.textContent = "🎨 スタンプモードを開始する"; btn.classList.remove("active");
+      document.getElementById("infoBar").classList.remove("painting-mode");
+      document.getElementById("infoBar").textContent = "通常モード：空マスをタップすると駐車位置が自動セットされます。";
+    }
+    render();
+  };
 
-window.matchBulkList = function() {
-  var text = document.getElementById("bulkText").value.trim();
-  if (!text) { alert("リストが空欄です。"); return; }
-  bulkMatchedNo = [];
-  text.split('\n').forEach(function(line) {
-    line.trim().split(/\s+/).forEach(function(part) {
-      var clean = part.trim();
-      if (clean.length >= 3) {
-        cars.forEach(function(c) { if (c.bodyNo.includes(clean) && !bulkMatchedNo.includes(c.bodyNo)) { bulkMatchedNo.push(c.bodyNo); } });
-      }
+  window.setPaintDate = function(offset) {
+    var pDate = document.getElementById("paintDate");
+    if(pDate) pDate.value = getJstDateString(offset);
+    updateDateButtons(); if(paintMode) updatePaintModeText();
+  };
+
+  window.matchBulkList = function() {
+    var text = document.getElementById("bulkText").value.trim();
+    if (!text) { alert("リストが空欄です。"); return; }
+    bulkMatchedNo = [];
+    text.split('\n').forEach(function(line) {
+      line.trim().split(/\s+/).forEach(function(part) {
+        var clean = part.trim();
+        if (clean.length >= 3) {
+          cars.forEach(function(c) { if (c.bodyNo.includes(clean) && !bulkMatchedNo.includes(c.bodyNo)) { bulkMatchedNo.push(c.bodyNo); } });
+        }
+      });
     });
-  });
-  render();
-};
+    render();
+  };
 
-window.clearBulkMatch = function() { bulkMatchedNo = []; document.getElementById("bulkText").value = ""; render(); };
-window.clearSearch = function() {
-  document.getElementById("search").value = ""; document.querySelectorAll(".slot").forEach(function(s){ s.classList.remove("highlight"); });
-};
+  window.clearBulkMatch = function() { bulkMatchedNo = []; document.getElementById("bulkText").value = ""; render(); };
+  window.clearSearch = function() {
+    document.getElementById("search").value = ""; document.querySelectorAll(".slot").forEach(function(s){ s.classList.remove("highlight"); });
+  };
 
-window.addMasterItem = function(mode) {
-  if (mode === 'type') {
-    var val = document.getElementById("newType").value.trim().toUpperCase();
-    if (val && !masterTypes.includes(val)) { masterTypes.push(val); document.getElementById("newType").value = ""; }
-  } else {
-    var val = document.getElementById("newStatus").value.trim();
-    if (val && !masterStatuses.includes(val)) { masterStatuses.push(val); document.getElementById("newStatus").value = ""; }
-  }
-  localStorage.setItem("m_types_final", JSON.stringify(masterTypes));
-  localStorage.setItem("m_statuses_final", JSON.stringify(masterStatuses));
-  init(); save();
-};
+  window.addMasterItem = function(mode) {
+    if (mode === 'type') {
+      var val = document.getElementById("newType").value.trim().toUpperCase();
+      if (val && !masterTypes.includes(val)) { masterTypes.push(val); document.getElementById("newType").value = ""; }
+    } else {
+      var val = document.getElementById("newStatus").value.trim();
+      if (val && !masterStatuses.includes(val)) { masterStatuses.push(val); document.getElementById("newStatus").value = ""; }
+    }
+    localStorage.setItem("m_types_final", JSON.stringify(masterTypes));
+    localStorage.setItem("m_statuses_final", JSON.stringify(masterStatuses));
+    init(); save();
+  };
 
-window.deleteMasterItem = function(mode, idx) {
-  if (!confirm("削除しますか？")) return;
-  if (mode === 'type') masterTypes.splice(idx, 1); else masterStatuses.splice(idx, 1);
-  localStorage.setItem("m_types_final", JSON.stringify(masterTypes));
-  localStorage.setItem("m_statuses_final", JSON.stringify(masterStatuses));
-  init(); save();
-};
+  window.deleteMasterItem = function(mode, idx) {
+    if (!confirm("削除しますか？")) return;
+    if (mode === 'type') masterTypes.splice(idx, 1); else masterStatuses.splice(idx, 1);
+    localStorage.setItem("m_types_final", JSON.stringify(masterTypes));
+    localStorage.setItem("m_statuses_final", JSON.stringify(masterStatuses));
+    init(); save();
+  };
 
-window.resetAllData = function() {
-  if (confirm("全データを完全リセットして初期状態に戻しますか？")) { localStorage.clear(); location.reload(); }
-};
+  window.resetAllData = function() {
+    if (confirm("全データを完全リセットして初期状態に戻しますか？")) { localStorage.clear(); location.reload(); }
+  };
+
+  // 💡 【大修正の答え】アプリ起動スイッチを、全ての関数宣言が完全に終わった『一番最後』に配置。
+  // これによりタイミングエラーを物理的にゼロにしました。
+  var checkExist = setInterval(function() {
+     if (document.getElementById("map")) { startApp(); clearInterval(checkExist); }
+  }, 50);
+
+})();
 </script>
 </body>
 </html>
