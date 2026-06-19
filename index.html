@@ -211,7 +211,11 @@
 
   <section class="bulk-search-panel">
     <h3>① 朝の作業リスト照合（車体番号の一部・下4桁でもOK）</h3>
-    <textarea id="bulkText" placeholder="朝のリスト（車体番号のみ、またはバラバラのテキスト）を貼り付けてください。"></textarea>
+    <textarea id="bulkText" placeholder="朝のリスト（車体番号のみ、またはバラバラのテキスト）を貼り付けてください。
+例：
+9431
+582
+119610"></textarea>
     <div class="btn-group">
       <button onclick="matchBulkList()" class="btn-primary">朝リストと場内を照合（部分検索）</button>
       <button onclick="clearBulkMatch()" class="btn-sub">照合を解除</button>
@@ -473,7 +477,6 @@
       el.style.width = item.w + "px";
       el.style.height = item.h + "px";
 
-      // 💡 【新設】回転・文字方向プロパティのリアルタイム描画反映
       if (item.rotate) {
         el.style.transform = "rotate(" + item.rotate + "deg)";
       } else {
@@ -522,7 +525,6 @@
           selectedItemIds = [item.id];
           document.getElementById("editW").value = item.w;
           document.getElementById("editH").value = item.h;
-          // 💡 タップ時に現在の回転と文字方向を選択ボックスへ自動反映
           if (document.getElementById("editRotate")) document.getElementById("editRotate").value = item.rotate || 0;
           if (document.getElementById("editWriting")) document.getElementById("editWriting").value = item.writing || "horizontal";
           document.getElementById("infoBar").textContent = "【図形選択中】「" + (item.name || '境界線') + "」を選択中。ドラッグ移動、右下赤つまみで変形可能。";
@@ -530,6 +532,15 @@
           return;
         }
         if (item.type === "slot") handleSlotClick(item.name);
+      };
+
+      el.ondblclick = function(e) {
+        e.stopPropagation();
+        if(editMode || item.type !== "slot") return;
+        var carData = cars.find(function(c){ return c.place === item.name; });
+        if (carData && confirm("【出庫】\n" + carData.user + " [" + carData.bodyNo + "] を消去しますか？")) {
+          cars = cars.filter(function(c){ return c.place !== item.name; }); save(); render();
+        }
       };
 
       el.onmousedown = function(ev) { dragStart(ev, item, el); };
@@ -816,6 +827,7 @@
 
     map.style.width = maxX + "px";
     map.style.height = maxY + "px";
+
     map.style.transform = "scale(" + zoomLevel + ")";
     map.style.transformOrigin = "0 0";
     
@@ -830,11 +842,12 @@
     }
   }
 
+  // 💡 【修正】最小倍率の安全ガードの下限を、0.4 (40%) から 「0.2 (20%)」 に拡張！
   window.changeZoom = function(amt) {
     if (amt === 0) {
       zoomLevel = 1.0;
     } else {
-      zoomLevel = Math.max(0.4, Math.min(2.0, zoomLevel + amt));
+      zoomLevel = Math.max(0.2, Math.min(2.0, zoomLevel + amt));
     }
     applyZoom();
   };
@@ -870,7 +883,6 @@
     render();
   };
 
-  // 💡 【大改造】一括連続作成（横並び・縦並び・ナンバリング連動）に対応
   window.addItem = function() {
     var type = document.getElementById("addType").value;
     var name = document.getElementById("addName").value.trim();
@@ -892,7 +904,7 @@
     for (var i = 0; i < count; i++) {
       var currentName = name;
       if (count > 1 && type !== "line") {
-        currentName = name + "-" + (i + 1); // 複数作成時は自動で「8-1」「8-2」と番号を振る
+        currentName = name + "-" + (i + 1); 
       }
       var currentX = startX;
       var currentY = startY;
@@ -916,7 +928,6 @@
     save(); init(); render();
   };
 
-  // 💡 【新設】回転・縦書きのスタイル変更を複数図形に一括反映する処理
   window.applyItemStyleCustom = function() {
     if (selectedItemIds.length === 0 && !selectedItemId) return;
     var rotVal = parseInt(document.getElementById("editRotate").value) || 0;
@@ -931,7 +942,6 @@
     save(); render();
   };
 
-  // 💡 【新設】選択した複数のマスを「一番端」を基準にビシッと整列させるアルゴリズム
   window.alignSelected = function(mode) {
     if (selectedItemIds.length < 2) { alert("ドラッグして囲むか、2個以上の図形を選択してください。"); return; }
     
