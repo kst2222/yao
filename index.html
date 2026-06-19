@@ -44,6 +44,7 @@
   .btn-paint-toggle.active { background: #dc2626; animation: pulse 1s infinite; }
 
   .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+  .app input, .app select, .app button, .app textarea { padding: 7px; font-size: 13px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; }
   .input-group { display: flex; flex-direction: column; gap: 3px; }
   .input-group label { font-size: 11px; font-weight: bold; color: #475569; }
   .flex-row { display: flex; gap: 4px; }
@@ -69,6 +70,7 @@
     position: relative; width: 1800px; height: 1100px; 
     background: linear-gradient(#e2e8f0 1px, transparent 1px), linear-gradient(90deg, #e2e8f0 1px, transparent 1px);
     background-size: 25px 25px;
+    transition: transform 0.15s ease-out; /* 💡 ズーム時の動きを滑らかにする */
   }
   .map.edit-active .item { cursor: move; }
   
@@ -255,6 +257,14 @@
 
   <div class="info-bar" id="infoBar">通常モード：空マスをタップすると駐車位置が自動セットされます。</div>
 
+  <div style="margin-bottom: 6px; display: flex; gap: 8px; align-items: center; background: #fff; padding: 6px 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <span style="font-size: 12px; font-weight: bold; color: #475569;">🔎 マップ拡大縮小（スマホ・PC対応）:</span>
+    <button onclick="window.changeZoom(0.1)" class="btn-sub" style="padding: 3px 12px; font-size: 11px; background: #0284c7; color: white; border: none;">➕ 拡大</button>
+    <button onclick="window.changeZoom(-0.1)" class="btn-sub" style="padding: 3px 12px; font-size: 11px; background: #0284c7; color: white; border: none;">➖ 縮小</button>
+    <button onclick="window.changeZoom(0)" class="btn-sub" style="padding: 3px 12px; font-size: 11px; background: #64748b; color: white; border: none;">等倍 (100%)</button>
+    <span id="zoomTxt" style="font-size: 12px; font-weight: bold; color: #0284c7; margin-left: 4px;">100%</span>
+  </div>
+
   <div class="map-wrap">
     <div class="map" id="map"></div>
   </div>
@@ -265,6 +275,9 @@
   // 🌟 【あなたのGASURLを自動埋め込み済み】
   var GAS_URL = "https://script.google.com/macros/s/AKfycbzZ-wc9IXWeoX1hCWkz2PUn2z2FyXfOwB_7lIQ5hOBIQ0DFtC0qdpFKTA8ptv5FfA_U/exec"; 
   var ADMIN_PASSWORD = "yao";
+
+  // 💡 【新設】ズーム倍率管理変数
+  var zoomLevel = 1.0;
 
   var placesDef = [
     "1-1","1-2","1-3","1-4","1-5","1-6","1-7",
@@ -287,9 +300,6 @@
   var selectedPlace = null;
   var bulkMatchedNo = [];
   var paintMode = false;
-
-  // 🌟 【大改造：ホイスティング完全対応】 全ての関数を「標準のfunction宣言」で記述。
-  // これにより読み込み順序にズレが起きても、絶対に「関数が見つからないバグ」が起きなくなります。
 
   function getInitialItems() {
     var defaultItems = [
@@ -479,6 +489,7 @@
     });
   }
 
+  // 💡 【ズーム対応】移動量をzoomLevelで割って指にピタッと吸い付くように補正
   function dragStart(e, item, el) {
     if (editMode && e.target.className === 'resize-handle') return;
     if (!editMode) return;
@@ -495,7 +506,8 @@
     function move(ev) {
       var mx = isTouch ? ev.touches[0].clientX : ev.clientX;
       var my = isTouch ? ev.touches[0].clientY : ev.clientY;
-      item.x = ox + mx - sx; item.y = oy + my - sy;
+      item.x = ox + (mx - sx) / zoomLevel; 
+      item.y = oy + (my - sy) / zoomLevel; 
       el.style.left = item.x + "px"; el.style.top = item.y + "px";
     }
 
@@ -508,6 +520,7 @@
     document.addEventListener(isTouch ? "touchend" : "mouseup", up);
   }
 
+  // 💡 【ズーム対応】引き伸ばし量もzoomLevelで割って補正
   function initResize(e, item, el) {
     e.stopPropagation(); e.preventDefault();
     var isTouch = e.type === 'touchstart';
@@ -518,8 +531,8 @@
     function move(ev) {
       var mx = isTouch ? ev.touches[0].clientX : ev.clientX;
       var my = isTouch ? ev.touches[0].clientY : ev.clientY;
-      item.w = Math.max(30, sw + mx - sx);
-      item.h = Math.max(20, sh + my - sy);
+      item.w = Math.max(30, sw + (mx - sx) / zoomLevel);
+      item.h = Math.max(20, sh + (my - sy) / zoomLevel);
       el.style.width = item.w + "px"; el.style.height = item.h + "px";
       document.getElementById("editW").value = item.w;
       document.getElementById("editH").value = item.h;
@@ -621,6 +634,8 @@
 
   function startApp() {
     loadData(); init(); render();
+    // 💡 起動時に等倍（100%）に一度カチッとセットする
+    window.changeZoom(0);
     if (GAS_URL && GAS_URL.trim() !== "") {
       syncFromCloud(); setInterval(syncFromCloud, 3000); 
     }
@@ -639,7 +654,33 @@
     }
   }
 
-  // 🌟 各関数のwindowバインド（通常のfunction宣言なので、巻き上げにより確実に代入されます）
+  // 💡 【新機能】ズーム制御処理（マージン相殺トリックでスクロール追従も完璧）
+  window.changeZoom = function(amt) {
+    if (amt === 0) {
+      zoomLevel = 1.0;
+    } else {
+      // 0.4倍〜2.0倍までの安全ガード
+      zoomLevel = Math.max(0.4, Math.min(2.0, zoomLevel + amt));
+    }
+    
+    var map = document.getElementById("map");
+    if (map) {
+      map.style.transform = "scale(" + zoomLevel + ")";
+      map.style.transformOrigin = "0 0";
+      
+      // 拡大縮小に合わせて、スクロールの可動範囲をピシッとミリ単位で追従させる計算
+      var mr = (1800 * zoomLevel) - 1800;
+      var mb = (1100 * zoomLevel) - 1100;
+      map.style.marginRight = mr + "px";
+      map.style.marginBottom = mb + "px";
+    }
+    
+    var txt = document.getElementById("zoomTxt");
+    if (txt) {
+      txt.textContent = Math.round(zoomLevel * 100) + "%";
+    }
+  };
+
   window.toggleEditMode = function() {
     if (!editMode) {
       var pw = prompt("管理者パスワードを入力してください:");
@@ -695,7 +736,7 @@
     if (confirm("「" + (item.name || '境界線') + "」を削除しますか？")) {
       items = items.filter(function(i){ return i.id !== selectedItemId; });
       if (item.type === "slot") cars = cars.filter(function(c){ return c.place !== item.name; });
-      selectedItemId = null; save(); init(); render();
+      selectedItemId = null; save(); render();
     }
   };
 
@@ -739,12 +780,6 @@
       document.getElementById("infoBar").textContent = "通常モード：空マスをタップすると駐車位置が自動セットされます。";
     }
     render();
-  };
-
-  window.setPaintDate = function(offset) {
-    var pDate = document.getElementById("paintDate");
-    if(pDate) pDate.value = getJstDateString(offset);
-    updateDateButtons(); if(paintMode) updatePaintModeText();
   };
 
   window.matchBulkList = function() {
@@ -792,8 +827,6 @@
     if (confirm("全データを完全リセットして初期状態に戻しますか？")) { localStorage.clear(); location.reload(); }
   };
 
-  // 💡 【大修正の答え】アプリ起動スイッチを、全ての関数宣言が完全に終わった『一番最後』に配置。
-  // これによりタイミングエラーを物理的にゼロにしました。
   var checkExist = setInterval(function() {
      if (document.getElementById("map")) { startApp(); clearInterval(checkExist); }
   }, 50);
