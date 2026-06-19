@@ -286,6 +286,21 @@
     </div>
   </section>
 
+  <section class="form-panel" style="background: #f0fdf4; border: 1px solid #bbf7d0;">
+    <h3>④ 複数車両の一括入場登録（最大100台まとめて一気に配置）</h3>
+    <div style="font-size: 11px; margin-bottom: 8px; color: #166534; font-weight: bold; line-height: 1.4;">
+      💡 エクセルのデータを列ごと丸ごとコピーしてそのまま貼り付け可能です！<br>
+      【駐車位置 ユーザー名 車体番号】の3列形式（車種は上の③で選んでいるものが自動で入ります）、または【駐車位置 車種 ユーザー名 車体番号】の4列形式のどちらでも1行ずつ自動判別して登録されます。
+    </div>
+    <textarea id="bulkCarText" placeholder="【入力形式の例（エクセルの3列コピペ）】
+1-1 朝ま 12345
+1-2 麻田 223442
+1-3 大竹 11564" style="height: 110px; font-family: monospace;"></textarea>
+    <div class="form-buttons" style="margin-top: 8px;">
+      <button onclick="addCarsBulk()" class="btn-success" style="background: #16a34a;">➕ まとめて場内へ配置（一括登録）</button>
+    </div>
+  </section>
+
   <details class="master-settings">
     <summary>⚙️ 選択肢の追加・カスタマイズ</summary>
     <div class="settings-grid">
@@ -424,7 +439,7 @@
     var slots = items.filter(function(i){ return i.type === "slot"; }).map(function(i){ return i.name; });
     placeSel.innerHTML = slots.map(function(s){ return "<option value='"+s+"'>"+s+"</option>"; }).join("");
 
-    document.getElementById("actionDate").value = getJstDateString(0);
+    document.getElementById("actionDate").value = "";
     
     var pStatus = document.getElementById("paintStatus");
     if(pStatus) pStatus.onchange = function() { if(paintMode) updatePaintModeText(); };
@@ -737,7 +752,7 @@
         selectedPlace = null; 
         document.getElementById("userName").value = "";
         document.getElementById("bodyNo").value = "";
-        document.getElementById("actionDate").value = getJstDateString(0);
+        document.getElementById("actionDate").value = "";
         infoBar.textContent = "通常モード：空マスをタップすると駐車位置が自動セットされます。";
         render(); return; 
       }
@@ -1059,6 +1074,78 @@
     car.date = document.getElementById("actionDate").value;
     selectedPlace = null; save(); render();
     document.getElementById("infoBar").textContent = "通常モード：空マスをタップすると駐車位置が自動セットされます。";
+  };
+
+  window.addCarsBulk = function() {
+    var text = document.getElementById("bulkCarText").value.trim();
+    if (!text) { alert("登録するデータが空欄です。"); return; }
+
+    var lines = text.split('\n');
+    var addedCount = 0;
+    var skippedCount = 0;
+    var errorLogs = [];
+
+    var activeSlots = items.filter(function(i) { return i.type === "slot"; }).map(function(i) { return i.name; });
+
+    lines.forEach(function(line, idx) {
+      var currentLine = line.trim();
+      if (!currentLine) return;
+
+      var parts = currentLine.split(/\s+/);
+      var place, type, user, bodyNo;
+
+      if (parts.length >= 4) {
+        place = parts[0];
+        type = parts[1];
+        user = parts[2];
+        bodyNo = parts[3];
+      } else if (parts.length === 3) {
+        place = parts[0];
+        type = document.getElementById("carType").value || "未定";
+        user = parts[1];
+        bodyNo = parts[2];
+      } else {
+        skippedCount++;
+        errorLogs.push((idx + 1) + "行目: 項目不足（駐車位置 ユーザー名 車体番号 の3項目が必要です）");
+        return;
+      }
+
+      if (!activeSlots.includes(place)) {
+        skippedCount++;
+        errorLogs.push((idx + 1) + "行目: 位置「" + place + "」はマップ上に存在しません");
+        return;
+      }
+
+      if (cars.some(function(c) { return c.place === place; })) {
+        skippedCount++;
+        errorLogs.push((idx + 1) + "行目: 位置「" + place + "」にはすでに他の車が登録されています");
+        return;
+      }
+
+      cars.push({
+        id: Date.now() + idx,
+        type: type,
+        user: user,
+        bodyNo: bodyNo,
+        place: place,
+        status: "未定",
+        date: ""
+      });
+      addedCount++;
+    });
+
+    if (addedCount > 0) {
+      document.getElementById("bulkCarText").value = "";
+      save(); 
+      render();
+    }
+
+    var msg = "【一括登録が完了しました】\n成功: " + addedCount + " 台\nエラー/スキップ: " + skippedCount + " 件";
+    if (errorLogs.length > 0) {
+      msg += "\n\n▼エラー詳細 (最初の10件):\n" + errorLogs.slice(0, 10).join("\n");
+      if (errorLogs.length > 10) msg += "\n...他 " + (errorLogs.length - 10) + " 件のエラーあり";
+    }
+    alert(msg);
   };
 
   window.togglePaintMode = function() {
