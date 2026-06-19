@@ -68,9 +68,10 @@
   .map-wrap { width: 100%; height: 62vh; overflow: auto; background: #fff; border: 3px solid #0f172a; position: relative; border-radius: 6px; }
   .map { 
     position: relative; width: 1800px; height: 1100px; 
-    background: linear-gradient(#e2e8f0 1px, transparent 1px), linear-gradient(90deg, #e2e8f0 1px, transparent 1px);
+    background: linear-gradient(#cbd5e1 1px, transparent 1px), linear-gradient(90deg, #cbd5e1 1px, transparent 1px);
     background-size: 25px 25px;
-    transition: transform 0.15s ease-out; /* 💡 ズーム時の動きを滑らかにする */
+    background-repeat: repeat;
+    transition: transform 0.15s ease-out;
   }
   .map.edit-active .item { cursor: move; }
   
@@ -81,9 +82,9 @@
   .item.line { background: #1e293b; height: 6px !important; border: 0; }
 
   /* 駐車マス */
-  .item.slot { display: block; background: #ffffff; border: 1px solid #a1a1aa; border-radius: 6px; cursor: pointer; transition: background 0.15s; box-shadow: 0 1px 3px rgba(0,0,0,0.05); font-weight: normal; z-index: 5; }
+  .item.slot { display: block; background: #ffffff; border: 2px solid #222222; border-radius: 6px; cursor: pointer; transition: background 0.15s; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-weight: normal; z-index: 5; }
   .item.slot:hover { border-color: #0f172a; background: #f4f4f5; z-index: 10; }
-  .slot-label { font-size: 11px; background: #e4e4e7; color: #27272a; height: 16px; line-height: 16px; border-radius: 5px 5px 0 0; font-weight: bold; overflow: hidden; border-bottom: 1px solid #d4d4d8; }
+  .slot-label { font-size: 11px; background: #e4e4e7; color: #27272a; height: 16px; line-height: 16px; border-radius: 4px 4px 0 0; font-weight: bold; overflow: hidden; border-bottom: 1px solid #b4b4b8; }
   
   /* エフェクト枠 */
   .item.selected-slot { outline: 4px solid #3b82f6; z-index: 40 !important; }
@@ -98,7 +99,7 @@
   /* 車両カード */
   .car { height: calc(100% - 17px); font-size: 11px; font-weight: bold; display: flex; flex-direction: column; justify-content: center; align-items: center; line-height: 1.2; overflow: hidden; border-radius: 0 0 4px 4px; color: #1e293b; }
   .car-date { font-size: 9px; opacity: 0.8; margin-top: 1px; }
-  .empty { color: #a1a1aa; font-size: 12px; padding-top: 14px; font-weight: normal; }
+  .empty { color: #555555; font-size: 12px; padding-top: 14px; font-weight: bold; }
 
   /* 作業別カラー */
   .status-wash { background: #00d9ff; color: #000; }
@@ -129,6 +130,7 @@
     </div>
   </header>
 
+  <!-- レイアウト・場内図カスタマイズパネル -->
   <section class="edit-panel">
     <h3>📐 場内図の図形変更・新しい駐車マスの作成・線の追加</h3>
     <div class="paint-grid">
@@ -147,6 +149,7 @@
       </div>
       <button onclick="addItem()" class="btn-primary" style="background:#0284c7; height:34px;">📐 マップに追加</button>
       
+      <!-- サイズ数値指定用 -->
       <div class="input-group" style="min-width: 70px; max-width: 80px;">
         <label>幅(px)</label>
         <input type="number" id="editW" placeholder="幅">
@@ -162,6 +165,7 @@
     </div>
   </section>
 
+  <!-- 朝リスト -->
   <section class="bulk-search-panel">
     <h3>① 朝の作業リスト照合（車体番号の一部・下4桁でもOK）</h3>
     <textarea id="bulkText" placeholder="朝のリスト（車体番号のみ、またはバラバラのテキスト）を貼り付けてください。
@@ -175,6 +179,7 @@
     </div>
   </section>
 
+  <!-- スタンプ -->
   <section class="paint-panel">
     <h3>② 簡易一括色塗り（スタンプモード） ★大量の車を一気に色付けするとき</h3>
     <div class="paint-grid">
@@ -198,6 +203,7 @@
     </div>
   </section>
 
+  <!-- 車両登録フォーム -->
   <section class="form-panel">
     <h3>③ 車両の入場登録 ／ 選択中の情報書き換え</h3>
     <div class="form-grid">
@@ -233,6 +239,7 @@
     </div>
   </section>
 
+  <!-- マスタ設定 -->
   <details class="master-settings">
     <summary>⚙️ 選択肢の追加・カスタマイズ</summary>
     <div class="settings-grid">
@@ -257,6 +264,7 @@
 
   <div class="info-bar" id="infoBar">通常モード：空マスをタップすると駐車位置が自動セットされます。</div>
 
+  <!-- マップズーム操作用バー -->
   <div style="margin-bottom: 6px; display: flex; gap: 8px; align-items: center; background: #fff; padding: 6px 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
     <span style="font-size: 12px; font-weight: bold; color: #475569;">🔎 マップ拡大縮小（スマホ・PC対応）:</span>
     <button onclick="window.changeZoom(0.1)" class="btn-sub" style="padding: 3px 12px; font-size: 11px; background: #0284c7; color: white; border: none;">➕ 拡大</button>
@@ -265,6 +273,7 @@
     <span id="zoomTxt" style="font-size: 12px; font-weight: bold; color: #0284c7; margin-left: 4px;">100%</span>
   </div>
 
+  <!-- マップ -->
   <div class="map-wrap">
     <div class="map" id="map"></div>
   </div>
@@ -272,11 +281,9 @@
 
 <script>
 (function() {
-  // 🌟 【あなたのGASURLを自動埋め込み済み】
   var GAS_URL = "https://script.google.com/macros/s/AKfycbzZ-wc9IXWeoX1hCWkz2PUn2z2FyXfOwB_7lIQ5hOBIQ0DFtC0qdpFKTA8ptv5FfA_U/exec"; 
   var ADMIN_PASSWORD = "yao";
 
-  // 💡 【新設】ズーム倍率管理変数
   var zoomLevel = 1.0;
 
   var placesDef = [
@@ -379,7 +386,7 @@
     var pDate = document.getElementById("paintDate");
     if(pDate) pDate.onchange = function() { updateDateButtons(); if(paintMode) updatePaintModeText(); };
 
-    setPaintDate(0);
+    window.setPaintDate(0);
     renderMasterLists();
   }
 
@@ -408,12 +415,6 @@
     info.textContent = "【🎨 スタンプ中】タップした車を連続で「" + status + " " + dateStr + "」に塗り替えます。";
   }
 
-  function setPaintDate(offset) {
-    var pDate = document.getElementById("paintDate");
-    if(pDate) pDate.value = getJstDateString(offset);
-    updateDateButtons(); if(paintMode) updatePaintModeText();
-  }
-
   function render() {
     var mapEl = document.getElementById("map");
     if(!mapEl) return;
@@ -422,6 +423,9 @@
     items.forEach(function(item) {
       var el = document.createElement("div");
       el.className = "item " + item.type;
+      
+      // 💡 【大修正のポイント】 検索にひっかけるための「 data-place 」属性を1行追加！
+      if (item.type === "slot") el.setAttribute("data-place", item.name);
       
       if (editMode && item.id === selectedItemId) el.className += " selected-item";
       if (!editMode && item.type === "slot" && selectedPlace === item.name) el.className += " selected-slot";
@@ -487,9 +491,10 @@
       el.ontouchstart = function(ev) { dragStart(ev, item, el); };
       mapEl.appendChild(el);
     });
+
+    applyZoom();
   }
 
-  // 💡 【ズーム対応】移動量をzoomLevelで割って指にピタッと吸い付くように補正
   function dragStart(e, item, el) {
     if (editMode && e.target.className === 'resize-handle') return;
     if (!editMode) return;
@@ -520,7 +525,6 @@
     document.addEventListener(isTouch ? "touchend" : "mouseup", up);
   }
 
-  // 💡 【ズーム対応】引き伸ばし量もzoomLevelで割って補正
   function initResize(e, item, el) {
     e.stopPropagation(); e.preventDefault();
     var isTouch = e.type === 'touchstart';
@@ -634,8 +638,6 @@
 
   function startApp() {
     loadData(); init(); render();
-    // 💡 起動時に等倍（100%）に一度カチッとセットする
-    window.changeZoom(0);
     if (GAS_URL && GAS_URL.trim() !== "") {
       syncFromCloud(); setInterval(syncFromCloud, 3000); 
     }
@@ -643,7 +645,7 @@
     if (sInput) {
       sInput.addEventListener("input", function(e) {
         var q = e.target.value.trim().toLowerCase();
-        document.querySelectorAll(".slot").forEach(function(s){ s.classList.remove("highlight"); });
+        document.querySelectorAll(".item").forEach(function(s){ s.classList.remove("highlight"); });
         if (!q) return;
         var hit = cars.find(function(c){ return c.user.toLowerCase().includes(q) || c.bodyNo.toLowerCase().includes(q); });
         if (hit) {
@@ -654,31 +656,51 @@
     }
   }
 
-  // 💡 【新機能】ズーム制御処理（マージン相殺トリックでスクロール追従も完璧）
-  window.changeZoom = function(amt) {
-    if (amt === 0) {
-      zoomLevel = 1.0;
-    } else {
-      // 0.4倍〜2.0倍までの安全ガード
-      zoomLevel = Math.max(0.4, Math.min(2.0, zoomLevel + amt));
-    }
-    
+  function applyZoom() {
     var map = document.getElementById("map");
-    if (map) {
-      map.style.transform = "scale(" + zoomLevel + ")";
-      map.style.transformOrigin = "0 0";
-      
-      // 拡大縮小に合わせて、スクロールの可動範囲をピシッとミリ単位で追従させる計算
-      var mr = (1800 * zoomLevel) - 1800;
-      var mb = (1100 * zoomLevel) - 1100;
-      map.style.marginRight = mr + "px";
-      map.style.marginBottom = mb + "px";
+    if (!map) return;
+
+    var maxX = 1800;
+    var maxY = 1100;
+    if (items && items.length > 0) {
+      items.forEach(function(item) {
+        if (item.x + item.w > maxX) maxX = item.x + item.w;
+        if (item.y + item.h > maxY) maxY = item.y + item.h;
+      });
     }
+    maxX += 60;
+    maxY += 60;
+
+    map.style.width = maxX + "px";
+    map.style.height = maxY + "px";
+
+    map.style.transform = "scale(" + zoomLevel + ")";
+    map.style.transformOrigin = "0 0";
+    
+    var mr = (maxX * zoomLevel) - maxX;
+    var mb = (maxY * zoomLevel) - maxY;
+    map.style.marginRight = mr + "px";
+    map.style.marginBottom = mb + "px";
     
     var txt = document.getElementById("zoomTxt");
     if (txt) {
       txt.textContent = Math.round(zoomLevel * 100) + "%";
     }
+  }
+
+  window.changeZoom = function(amt) {
+    if (amt === 0) {
+      zoomLevel = 1.0;
+    } else {
+      zoomLevel = Math.max(0.4, Math.min(2.0, zoomLevel + amt));
+    }
+    applyZoom();
+  };
+
+  window.setPaintDate = function(offset) {
+    var pDate = document.getElementById("paintDate");
+    if(pDate) pDate.value = getJstDateString(offset);
+    updateDateButtons(); if(paintMode) updatePaintModeText();
   };
 
   window.toggleEditMode = function() {
