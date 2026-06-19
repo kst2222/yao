@@ -96,6 +96,15 @@
     background: #ef4444; border-radius: 4px 0 4px 0; cursor: se-resize; z-index: 100;
   }
 
+  /* 💡 新設：範囲選択ドラッグ中の赤い点線枠のスタイル */
+  .selection-box {
+    position: absolute;
+    border: 2px dashed #dc2626;
+    background: rgba(220, 38, 38, 0.15);
+    pointer-events: none;
+    z-index: 2000;
+  }
+
   /* 車両カード */
   .car { height: calc(100% - 17px); font-size: 11px; font-weight: bold; display: flex; flex-direction: column; justify-content: center; align-items: center; line-height: 1.2; overflow: hidden; border-radius: 0 0 4px 4px; color: #1e293b; }
   .car-date { font-size: 9px; opacity: 0.8; margin-top: 1px; }
@@ -130,7 +139,6 @@
     </div>
   </header>
 
-  <!-- レイアウト・場内図カスタマイズパネル -->
   <section class="edit-panel">
     <h3>📐 場内図の図形変更・新しい駐車マスの作成・線の追加</h3>
     <div class="paint-grid">
@@ -149,7 +157,6 @@
       </div>
       <button onclick="addItem()" class="btn-primary" style="background:#0284c7; height:34px;">📐 マップに追加</button>
       
-      <!-- サイズ数値指定用 -->
       <div class="input-group" style="min-width: 70px; max-width: 80px;">
         <label>幅(px)</label>
         <input type="number" id="editW" placeholder="幅">
@@ -165,7 +172,6 @@
     </div>
   </section>
 
-  <!-- 朝リスト -->
   <section class="bulk-search-panel">
     <h3>① 朝の作業リスト照合（車体番号の一部・下4桁でもOK）</h3>
     <textarea id="bulkText" placeholder="朝のリスト（車体番号のみ、またはバラバラのテキスト）を貼り付けてください。
@@ -179,7 +185,6 @@
     </div>
   </section>
 
-  <!-- スタンプ -->
   <section class="paint-panel">
     <h3>② 簡易一括色塗り（スタンプモード） ★大量の車を一気に色付けするとき</h3>
     <div class="paint-grid">
@@ -203,7 +208,6 @@
     </div>
   </section>
 
-  <!-- 車両登録フォーム -->
   <section class="form-panel">
     <h3>③ 車両の入場登録 ／ 選択中の情報書き換え</h3>
     <div class="form-grid">
@@ -239,7 +243,6 @@
     </div>
   </section>
 
-  <!-- マスタ設定 -->
   <details class="master-settings">
     <summary>⚙️ 選択肢の追加・カスタマイズ</summary>
     <div class="settings-grid">
@@ -264,7 +267,6 @@
 
   <div class="info-bar" id="infoBar">通常モード：空マスをタップすると駐車位置が自動セットされます。</div>
 
-  <!-- マップズーム操作用バー -->
   <div style="margin-bottom: 6px; display: flex; gap: 8px; align-items: center; background: #fff; padding: 6px 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
     <span style="font-size: 12px; font-weight: bold; color: #475569;">🔎 マップ拡大縮小（スマホ・PC対応）:</span>
     <button onclick="window.changeZoom(0.1)" class="btn-sub" style="padding: 3px 12px; font-size: 11px; background: #0284c7; color: white; border: none;">➕ 拡大</button>
@@ -273,7 +275,6 @@
     <span id="zoomTxt" style="font-size: 12px; font-weight: bold; color: #0284c7; margin-left: 4px;">100%</span>
   </div>
 
-  <!-- マップ -->
   <div class="map-wrap">
     <div class="map" id="map"></div>
   </div>
@@ -304,6 +305,7 @@
 
   var editMode = false;
   var selectedItemId = null;
+  var selectedItemIds = []; // 💡 【新設】範囲選択された複数図形のID保存用配列
   var selectedPlace = null;
   var bulkMatchedNo = [];
   var paintMode = false;
@@ -418,16 +420,21 @@
   function render() {
     var mapEl = document.getElementById("map");
     if(!mapEl) return;
-    mapEl.innerHTML = "";
+    
+    // 💡 既存の要素のみ全クリア（範囲選択ボックスは残すため、itemクラスを持つ子要素だけ消去）
+    var legacyItems = mapEl.querySelectorAll(".item");
+    legacyItems.forEach(function(el) { el.remove(); });
 
     items.forEach(function(item) {
       var el = document.createElement("div");
       el.className = "item " + item.type;
       
-      // 💡 【大修正のポイント】 検索にひっかけるための「 data-place 」属性を1行追加！
       if (item.type === "slot") el.setAttribute("data-place", item.name);
       
-      if (editMode && item.id === selectedItemId) el.className += " selected-item";
+      // 💡 【修正】単一選択、または「範囲選択配列」に含まれている場合、すべて赤枠(selected-item)を点灯
+      if (editMode && (item.id === selectedItemId || selectedItemIds.includes(item.id))) {
+        el.className += " selected-item";
+      }
       if (!editMode && item.type === "slot" && selectedPlace === item.name) el.className += " selected-slot";
 
       el.style.left = item.x + "px";
@@ -457,6 +464,7 @@
         el.innerHTML = item.name || "";
       }
 
+      // つまみは単一選択(最後に選んだ図形)の右下だけに限定
       if (editMode && item.id === selectedItemId) {
         var handle = document.createElement("div");
         handle.className = "resize-handle";
@@ -468,7 +476,9 @@
       el.onclick = function(e) {
         e.stopPropagation();
         if (editMode) {
+          // 単一タップされた時は範囲選択を一度クリアしてその図形を選択
           selectedItemId = item.id;
+          selectedItemIds = [item.id];
           document.getElementById("editW").value = item.w;
           document.getElementById("editH").value = item.h;
           document.getElementById("infoBar").textContent = "【図形選択中】「" + (item.name || '境界線') + "」を選択中。ドラッグ移動、右下赤つまみで変形可能。";
@@ -498,7 +508,14 @@
   function dragStart(e, item, el) {
     if (editMode && e.target.className === 'resize-handle') return;
     if (!editMode) return;
-    selectedItemId = item.id;
+    
+    // 💡 複数選択された状態でどれか1つを引きずった時、選択中の図形をすべて同じ量だけまとめて動かす連動処理
+    if (editMode && selectedItemIds.includes(item.id)) {
+      selectedItemId = item.id; // つまみを出すために最後に触った奴をセット
+    } else if (editMode) {
+      selectedItemId = item.id;
+      selectedItemIds = [item.id];
+    }
     
     document.getElementById("editW").value = item.w;
     document.getElementById("editH").value = item.h;
@@ -506,14 +523,30 @@
     var isTouch = e.type === 'touchstart';
     var sx = isTouch ? e.touches[0].clientX : e.clientX;
     var sy = isTouch ? e.touches[0].clientY : e.clientY;
-    var ox = item.x, oy = item.y;
+    
+    // 選択されているすべてのアイテムの初期位置を記憶
+    var dragTargets = [];
+    if (editMode) {
+      items.forEach(function(it) {
+        if (selectedItemIds.includes(it.id)) {
+          dragTargets.push({ item: it, ox: it.x, oy: it.y });
+        }
+      });
+    } else {
+      dragTargets.push({ item: item, ox: item.x, oy: item.y });
+    }
 
     function move(ev) {
       var mx = isTouch ? ev.touches[0].clientX : ev.clientX;
       var my = isTouch ? ev.touches[0].clientY : ev.clientY;
-      item.x = ox + (mx - sx) / zoomLevel; 
-      item.y = oy + (my - sy) / zoomLevel; 
-      el.style.left = item.x + "px"; el.style.top = item.y + "px";
+      var dx = (mx - sx) / zoomLevel;
+      var dy = (my - sy) / zoomLevel;
+
+      dragTargets.forEach(function(target) {
+        target.item.x = target.ox + dx;
+        target.item.y = target.oy + dy;
+      });
+      render(); // 位置をリアルタイムに一斉更新
     }
 
     function up() {
@@ -547,6 +580,80 @@
       document.removeEventListener(isTouch ? "touchmove" : "mousemove", move);
       document.removeEventListener(isTouch ? "touchend" : "mouseup", up);
     }
+    document.addEventListener(isTouch ? "touchmove" : "mousemove", move, {passive: false});
+    document.addEventListener(isTouch ? "touchend" : "mouseup", up);
+  }
+
+  // 💡 【新設】編集モード中に背景をドラッグした際、赤い破線の範囲選択枠を広げる核心ロジック
+  function startRangeSelection(e) {
+    if (!editMode) return;
+    var mapEl = document.getElementById("map");
+    if (!mapEl) return;
+
+    // 新しく範囲選択を開始するため、これまでの選択を一旦全クリア
+    selectedItemId = null;
+    selectedItemIds = [];
+    render();
+
+    var isTouch = e.type === 'touchstart';
+    var rect = mapEl.getBoundingClientRect();
+    var clientX = isTouch ? e.touches[0].clientX : e.clientX;
+    var clientY = isTouch ? e.touches[0].clientY : e.clientY;
+
+    // ズーム倍率(zoomLevel)を逆算して、マップ内の正確な絶対ローカル初期座標を決定
+    var startX = (clientX - rect.left) / zoomLevel;
+    var startY = (clientY - rect.top) / zoomLevel;
+
+    var box = document.createElement("div");
+    box.className = "selection-box";
+    mapEl.appendChild(box);
+
+    function move(ev) {
+      var cX = isTouch ? ev.touches[0].clientX : ev.clientX;
+      var cY = isTouch ? ev.touches[0].clientY : ev.clientY;
+      var curX = (cX - rect.left) / zoomLevel;
+      var curY = (cY - rect.top) / zoomLevel;
+
+      var x = Math.min(startX, curX);
+      var y = Math.min(startY, curY);
+      var w = Math.abs(startX - curX);
+      var h = Math.abs(startY - curY);
+
+      box.style.left = x + "px";
+      box.style.top = y + "px";
+      box.style.width = w + "px";
+      box.style.height = h + "px";
+    }
+
+    function up() {
+      var finalX = parseFloat(box.style.left) || 0;
+      var finalY = parseFloat(box.style.top) || 0;
+      var finalW = parseFloat(box.style.width) || 0;
+      var finalH = parseFloat(box.style.height) || 0;
+
+      box.remove();
+      document.removeEventListener(isTouch ? "touchmove" : "mousemove", move);
+      document.removeEventListener(isTouch ? "touchend" : "mouseup", up);
+
+      // 点線のドラッグ範囲が5px以上のしっかりした四角形であれば、重なる要素を判定
+      if (finalW > 5 && finalH > 5) {
+        items.forEach(function(item) {
+          // 矩形の交差判定（重なりチェックアルゴリズム）
+          if (finalX < item.x + item.w && finalX + finalW > item.x &&
+              finalY < item.y + item.h && finalY + finalH > item.y) {
+            selectedItemIds.push(item.id);
+          }
+        });
+
+        // 複数引っかかった場合、最後に見つかった奴を仮の単一選択主軸にする
+        if (selectedItemIds.length > 0) {
+          selectedItemId = selectedItemIds[selectedItemIds.length - 1];
+          document.getElementById("infoBar").textContent = "【範囲選択中】 " + selectedItemIds.length + " 個の図形を一括選択しました。まとめて移動・一括削除が可能です。";
+        }
+      }
+      render();
+    }
+
     document.addEventListener(isTouch ? "touchmove" : "mousemove", move, {passive: false});
     document.addEventListener(isTouch ? "touchend" : "mouseup", up);
   }
@@ -638,6 +745,14 @@
 
   function startApp() {
     loadData(); init(); render();
+    
+    // 💡 【新設】マップの背景を掴んだ時だけ範囲選択を開始するイベント設定（要素の上でのドラッグと安全に分離）
+    var mapEl = document.getElementById("map");
+    if (mapEl) {
+      mapEl.onmousedown = function(e) { if(editMode && e.target === mapEl) startRangeSelection(e); };
+      mapEl.ontouchstart = function(e) { if(editMode && e.target === mapEl) startRangeSelection(e); };
+    }
+
     if (GAS_URL && GAS_URL.trim() !== "") {
       syncFromCloud(); setInterval(syncFromCloud, 3000); 
     }
@@ -645,7 +760,7 @@
     if (sInput) {
       sInput.addEventListener("input", function(e) {
         var q = e.target.value.trim().toLowerCase();
-        document.querySelectorAll(".item").forEach(function(s){ s.classList.remove("highlight"); });
+        document.querySelectorAll(".slot").forEach(function(s){ s.classList.remove("highlight"); });
         if (!q) return;
         var hit = cars.find(function(c){ return c.user.toLowerCase().includes(q) || c.bodyNo.toLowerCase().includes(q); });
         if (hit) {
@@ -711,7 +826,7 @@
         return;
       }
     }
-    editMode = !editMode; paintMode = false; selectedPlace = null; selectedItemId = null;
+    editMode = !editMode; paintMode = false; selectedPlace = null; selectedItemId = null; selectedItemIds = [];
     document.getElementById("paintModeBtn").textContent = "🎨 スタンプモードを開始する";
     document.getElementById("paintModeBtn").classList.remove("active");
     var btn = document.getElementById("editModeBtn");
@@ -719,7 +834,7 @@
     var map = document.getElementById("map");
     if (editMode) {
       btn.textContent = "🛑 レイアウト編集を終了"; btn.classList.add("active"); map.classList.add("edit-active");
-      info.className = "info-bar edit-mode"; info.textContent = "【🔧 編集モード】図形を移動・追加・削除・リサイズできます。";
+      info.className = "info-bar edit-mode"; info.textContent = "【🔧 編集モード】空スペースをドラッグで範囲選択。図形をまとめて移動・追加・削除・リサイズできます。";
     } else {
       btn.textContent = "🔧 レイアウト編集を開始"; btn.classList.remove("active"); map.classList.remove("edit-active");
       info.className = "info-bar"; info.textContent = "通常モード：空マスをタップすると駐車位置が自動セットされます。";
@@ -736,7 +851,10 @@
     if (type === "slot") { w = 82; h = 72; }
     if (type === "line") { w = 300; h = 6; name = ""; }
     if (type === "road") { w = 400; h = 100; }
-    items.push({ id: Date.now(), type: type, name: name, x: 200, y: 200, w: w, h: h });
+    var newId = Date.now();
+    items.push({ id: newId, type: type, name: name, x: 200, y: 200, w: w, h: h });
+    selectedItemId = newId;
+    selectedItemIds = [newId]; // 追加した奴をそのまま選択枠にする
     document.getElementById("addName").value = "";
     save(); init(); render();
   };
@@ -752,13 +870,36 @@
     save(); init(); render();
   };
 
+  // 💡 【大幅強化】単一削除だけでなく、範囲選択された大量のマスや建物を「一括削除」するロジックへ進化
   window.deleteSelectedItem = function() {
-    if (!selectedItemId) { alert("図形を選択してください。"); return; }
-    var item = items.find(function(i){ return i.id === selectedItemId; });
-    if (confirm("「" + (item.name || '境界線') + "」を削除しますか？")) {
-      items = items.filter(function(i){ return i.id !== selectedItemId; });
-      if (item.type === "slot") cars = cars.filter(function(c){ return c.place !== item.name; });
-      selectedItemId = null; save(); render();
+    if (selectedItemIds.length === 0 && !selectedItemId) { alert("削除したい図形をタップするか、範囲ドラッグで選択してください。"); return; }
+    
+    // 重複を排除して削除対象IDを一本化
+    var targets = selectedItemIds.slice();
+    if (selectedItemId && !targets.includes(selectedItemId)) {
+      targets.push(selectedItemId);
+    }
+
+    var confirmMsg = targets.length === 1 
+      ? "選択した図形を削除しますか？" 
+      : "範囲選択された 【 " + targets.length + " 個 】 の図形をマップから一括削除しますか？\n（マスを削除した場合、中にある車両データも一緒に消去されます）";
+
+    if (confirm(confirmMsg)) {
+      // 削除されるマス（slot）の名前をすべて集める
+      var deletedSlotNames = items.filter(function(i) {
+        return targets.includes(i.id) && i.type === "slot";
+      }).map(function(i) { return i.name; });
+
+      // マップオブジェクトから削除
+      items = items.filter(function(i){ return !targets.includes(i.id); });
+      // 車両データからも、そのマスに入っていた車を安全に自動消去
+      if (deletedSlotNames.length > 0) {
+        cars = cars.filter(function(c){ return !deletedSlotNames.includes(c.place); });
+      }
+
+      selectedItemId = null;
+      selectedItemIds = [];
+      save(); init(); render();
     }
   };
 
