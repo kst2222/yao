@@ -1,0 +1,34 @@
+<div class="app">
+  <header>
+    <h1>UD八尾 場内配置</h1>
+    <input id="search" placeholder="車体番号・会社名で検索">
+  </header>
+
+  <section class="form">
+    <select id="status">
+      <option value="入庫">入庫</option>
+      <option value="出庫">出庫</option>
+      <option value="回送">回送</option>
+      <option value="車検">車検</option>
+      <option value="洗車">洗車</option>
+      <option value="納車">納車</option>
+    </select>
+
+    <input id="company" placeholder="会社名 例：GK">
+    <input id="bodyNo" placeholder="車体番号 例：119431">
+
+    <select id="place"></select>
+
+    <button onclick="addCar()">配置</button>
+  </section>
+
+  <div class="legend">
+    <span class="wash">洗車</span>
+    <span class="transfer">回送</span>
+    <span class="inspection">車検</span>
+    <span class="delivery">納車</span>
+    <span class="inout">入庫/出庫</span>
+  </div>
+
+  <main class="yard" id="yard"></main>
+</div>

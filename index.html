@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>場内整理システム</title>
+<style>
+body{margin:0;font-family:system-ui,sans-serif;background:#f2f2f2}
+.app{padding:12px}
+h1{font-size:22px;margin:0 0 10px}
+.panel{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+input,select,textarea,button{padding:8px;font-size:14px}
+button{background:#111;color:#fff;border:0;cursor:pointer}
+button.red{background:#c00}
+button.gray{background:#666}
+textarea{width:100%;height:90px}
+.map-wrap{width:100%;height:68vh;overflow:auto;background:#fff;border:3px solid #111}
+.map{
+  position:relative;width:1900px;height:1150px;
+  background:linear-gradient(#ddd 1px,transparent 1px),
+  linear-gradient(90deg,#ddd 1px,transparent 1px);
+  background-size:25px 25px;
+}
+.item{position:absolute;border:2px solid #111;background:white;box-sizing:border-box;text-align:center;cursor:move;user-select:none}
+.item.selected{outline:5px solid red;z-index:99}
+.label{background:#eee;border-bottom:1px solid #999;font-size:12px;height:18px;line-height:18px;overflow:hidden}
+.carbox{font-size:12px;font-weight:bold;height:calc(100% - 19px);overflow:hidden;padding-top:3px}
+.area{display:flex;align-items:center;justify-content:center;font-weight:bold}
+.road{background:#333;color:#fff;display:flex;align-items:center;justify-content:center}
+.line{height:6px!important;background:#111;border:0}
+.none{background:#ddd}
+.wash{background:#00d9ff}
+.inspect{background:#f5a623}
+.transfer{background:#ffe44d}
+.delivery{background:#b58cff}
+.scale{background:#80e27e}
+.out{background:#ff9999}
+.done{opacity:.35}
+.hide{display:none!important}
+.summary{background:#fff;border:2px solid #111;padding:8px;margin:8px 0;font-weight:bold}
+</style>
+</head>
+
+<body>
+<div class="app">
+<h1>場内整理システム</h1>
+
+<div class="panel">
+  <select id="addType">
+    <option value="slot">車両場所</option>
+    <option value="area">建物・エリア</option>
+    <option value="road">道路</option>
+    <option value="line">線</option>
+  </select>
+  <input id="addName" placeholder="名前 ※線は空欄OK">
+  <button onclick="addItem()">図形追加</button>
+  <button class="gray" onclick="toggleEdit()">編集ON/OFF</button>
+  <button class="red" onclick="deleteSelectedItem()">図形削除</button>
+</div>
+
+<div class="panel">
+  <input id="company" placeholder="会社名">
+  <input id="bodyNo" placeholder="車体番号">
+  <select id="placeSelect"></select>
+  <button onclick="addCar()">車両登録</button>
+</div>
+
+<div class="panel">
+  <input id="search" placeholder="検索：会社名・車体番号">
+  <select id="tagSelect">
+    <option value="未定">未定</option>
+    <option value="洗車">洗車</option>
+    <option value="車検">車検</option>
+    <option value="回送">回送</option>
+    <option value="納車">納車</option>
+    <option value="計量">計量</option>
+    <option value="出庫">出庫</option>
+  </select>
+  <button onclick="changeTag()">札をつける</button>
+  <button onclick="completeCar()">作業完了/解除</button>
+  <select id="moveTo"></select>
+  <button onclick="moveCar(false)">移動</button>
+  <button onclick="moveCar(true)">交換</button>
+  <button class="red" onclick="deleteCar()">車両削除</button>
+</div>
+
+<div class="panel">
+  <button onclick="filterTag('all')">全表示</button>
+  <button onclick="filterTag('未定')">未定</button>
+  <button onclick="filterTag('洗車')">洗車</button>
+  <button onclick="filterTag('車検')">車検</button>
+  <button onclick="filterTag('回送')">回送</button>
+  <button onclick="filterTag('納車')">納車</button>
+  <button onclick="filterTag('計量')">計量</button>
+  <button onclick="filterTag('出庫')">出庫</button>
+</div>
+
+<div class="panel">
+  <input id="editName" placeholder="図形名変更">
+  <input id="editW" type="number" placeholder="幅">
+  <input id="editH" type="number" placeholder="高さ">
+  <button onclick="applyItemEdit()">図形変更</button>
+  <button class="red" onclick="resetAll()">全リセット</button>
+</div>
+
+<textarea id="bulkText" placeholder="朝のリストを貼る 例：
+119431 洗車
+119582 車検
+119610 納車"></textarea>
+<div class="panel">
+  <button onclick="bulkTag()">朝リスト一括札付け</button>
+</div>
+
+<div class="summary" id="summary">未定：0　洗車：0　車検：0　回送：0　納車：0　計量：0　出庫：0</div>
+<div class="summary" id="info">編集OFF / 車両未選択</div>
+
+<div class="map-wrap">
+  <div class="map" id="map"></div>
+</div>
+</div>
+
+<script>
+let editMode=false;
+let selectedItemId=null;
+let selectedCarId=null;
+let currentFilter="all";
+
+const map=document.getElementById("map");
+
+let items=JSON.parse(localStorage.getItem("yard_items_v3"))||[
+{id:1,type:"area",name:"整備場",x:80,y:80,w:330,h:120},
+{id:2,type:"area",name:"センター",x:220,y:240,w:250,h:120},
+{id:3,type:"road",name:"道路",x:0,y:850,w:1150,h:35},
+{id:4,type:"line",name:"",x:650,y:620,w:620,h:6},
+
+{id:101,type:"slot",name:"1-1",x:700,y:660,w:82,h:70},
+{id:102,type:"slot",name:"1-2",x:790,y:660,w:82,h:70},
+{id:103,type:"slot",name:"1-3",x:880,y:660,w:82,h:70},
+{id:104,type:"slot",name:"1-4",x:970,y:660,w:82,h:70},
+
+{id:201,type:"slot",name:"2-1",x:700,y:550,w:82,h:70},
+{id:202,type:"slot",name:"2-2",x:790,y:550,w:82,h:70},
+{id:203,type:"slot",name:"2-3",x:880,y:550,w:82,h:70},
+{id:204,type:"slot",name:"2-4",x:970,y:550,w:82,h:70},
+
+{id:301,type:"slot",name:"洗車前1",x:760,y:760,w:90,h:70},
+{id:302,type:"slot",name:"洗車前2",x:860,y:760,w:90,h:70},
+{id:303,type:"slot",name:"車検前1",x:960,y:760,w:90,h:70},
+{id:304,type:"slot",name:"回送前1",x:1060,y:760,w:90,h:70},
+{id:305,type:"slot",name:"納車前1",x:1160,y:760,w:90,h:70},
+{id:306,type:"slot",name:"計量前1",x:1260,y:760,w:90,h:70}
+];
+
+let cars=JSON.parse(localStorage.getItem("yard_cars_v3"))||[];
+
+function save(){
+  localStorage.setItem("yard_items_v3",JSON.stringify(items));
+  localStorage.setItem("yard_cars_v3",JSON.stringify(cars));
+}
+
+function render(){
+  map.innerHTML="";
+
+  items.forEach(item=>{
+    const el=document.createElement("div");
+    el.className=`item ${item.type}`;
+    if(item.id===selectedItemId) el.classList.add("selected");
+
+    el.style.left=item.x+"px";
+    el.style.top=item.y+"px";
+    el.style.width=item.w+"px";
+    el.style.height=item.h+"px";
+    el.dataset.id=item.id;
+
+    if(item.type==="slot"){
+      const car=cars.find(c=>c.place===item.name);
+      if(car && currentFilter!=="all" && car.tag!==currentFilter) el.classList.add("hide");
+
+      el.innerHTML=`
+        <div class="label">${item.name}</div>
+        ${
+          car
+          ? `<div class="carbox ${tagClass(car.tag)} ${car.done?'done':''}" data-carid="${car.id}">
+              ${car.company}<br>${car.bodyNo}<br>${car.tag}${car.done?' 完了':''}
+            </div>`
+          : `<div style="color:#aaa;padding-top:15px;">空</div>`
+        }
+      `;
+    }else{
+      el.innerHTML=item.name||"";
+    }
+
+    el.onclick=e=>{
+      e.stopPropagation();
+      const carBox=e.target.closest(".carbox");
+
+      if(carBox){
+        selectedCarId=Number(carBox.dataset.carid);
+        selectedItemId=null;
+        const car=cars.find(c=>c.id===selectedCarId);
+        document.getElementById("tagSelect").value=car.tag;
+        document.getElementById("info").textContent=`車両選択：${car.company} / ${car.bodyNo} / ${car.place} / 札：${car.tag}`;
+      }else{
+        selectedItemId=item.id;
+        selectedCarId=null;
+        document.getElementById("editName").value=item.name;
+        document.getElementById("editW").value=item.w;
+        document.getElementById("editH").value=item.h;
+        document.getElementById("info").textContent=`図形選択：${item.name||"名称なし"}`;
+      }
+      render();
+    };
+
+    el.onmousedown=e=>{
+      if(!editMode)return;
+      selectedItemId=item.id;
+
+      const sx=e.clientX,sy=e.clientY,ox=item.x,oy=item.y;
+
+      function move(ev){
+        item.x=ox+ev.clientX-sx;
+        item.y=oy+ev.clientY-sy;
+        el.style.left=item.x+"px";
+        el.style.top=item.y+"px";
+      }
+
+      function up(){
+        save();
+        document.removeEventListener("mousemove",move);
+        document.removeEventListener("mouseup",up);
+      }
+
+      document.addEventListener("mousemove",move);
+      document.addEventListener("mouseup",up);
+    };
+
+    map.appendChild(el);
+  });
+
+  refreshSelects();
+  updateSummary();
+}
+
+function refreshSelects(){
+  const slots=items.filter(i=>i.type==="slot").map(i=>i.name);
+
+  ["placeSelect","moveTo"].forEach(id=>{
+    const sel=document.getElementById(id);
+    const cur=sel.value;
+    sel.innerHTML="";
+    slots.forEach(s=>{
+      const opt=document.createElement("option");
+      opt.value=s;
+      opt.textContent=s;
+      sel.appendChild(opt);
+    });
+    sel.value=cur;
+  });
+}
+
+function addItem(){
+  const type=document.getElementById("addType").value;
+  let name=document.getElementById("addName").value.trim();
+
+  if(!name && type==="line") name="";
+  else if(!name && type==="road") name="道路";
+  else if(!name){alert("名前を入力してください");return;}
+
+  let w=180,h=90;
+  if(type==="slot"){w=90;h=70}
+  if(type==="line"){w=280;h=6}
+  if(type==="road"){w=260;h=40}
+
+  items.push({id:Date.now(),type,name,x:100,y:100,w,h});
+  document.getElementById("addName").value="";
+  save();render();
+}
+
+function addCar(){
+  const company=document.getElementById("company").value.trim();
+  const bodyNo=document.getElementById("bodyNo").value.trim();
+  const place=document.getElementById("placeSelect").value;
+
+  if(!company||!bodyNo){alert("会社名と車体番号を入力してください");return;}
+  if(cars.some(c=>c.place===place)){alert("その場所には車両があります");return;}
+
+  cars.push({
+    id:Date.now(),
+    company,
+    bodyNo,
+    place,
+    tag:"未定",
+    done:false,
+    inDate:today(),
+    history:[`${now()} 登録 → ${place}`]
+  });
+
+  document.getElementById("company").value="";
+  document.getElementById("bodyNo").value="";
+  save();render();
+}
+
+function changeTag(){
+  if(!selectedCarId){alert("車両をタップしてください");return;}
+  const car=cars.find(c=>c.id===selectedCarId);
+  car.tag=document.getElementById("tagSelect").value;
+  car.done=false;
+  car.history.push(`${now()} 札変更 → ${car.tag}`);
+  save();render();
+}
+
+function completeCar(){
+  if(!selectedCarId){alert("車両をタップしてください");return;}
+  const car=cars.find(c=>c.id===selectedCarId);
+  car.done=!car.done;
+  car.history.push(`${now()} ${car.done?'作業完了':'完了解除'}：${car.tag}`);
+  save();render();
+}
+
+function moveCar(swap){
+  if(!selectedCarId){alert("車両をタップしてください");return;}
+
+  const to=document.getElementById("moveTo").value;
+  const car=cars.find(c=>c.id===selectedCarId);
+  const target=cars.find(c=>c.place===to);
+  const from=car.place;
+
+  if(target&&!swap){alert("移動先に車両があります。交換を押してください");return;}
+
+  if(target&&swap){
+    target.place=from;
+    target.history.push(`${now()} 交換 ${to} → ${from}`);
+  }
+
+  car.place=to;
+  car.history.push(`${now()} 移動 ${from} → ${to}`);
+  save();render();
+}
+
+function deleteCar(){
+  if(!selectedCarId){alert("車両をタップしてください");return;}
+  if(confirm("この車両を削除しますか？")){
+    cars=cars.filter(c=>c.id!==selectedCarId);
+    selectedCarId=null;
+    save();render();
+  }
+}
+
+function bulkTag(){
+  const text=document.getElementById("bulkText").value.trim();
+  if(!text){alert("リストを貼ってください");return;}
+
+  const lines=text.split(/\n/);
+  let count=0;
+  let notFound=[];
+
+  lines.forEach(line=>{
+    const parts=line.trim().split(/\s+/);
+    if(parts.length<2)return;
+
+    const bodyNo=parts[0];
+    const tag=parts[1];
+
+    const car=cars.find(c=>c.bodyNo.includes(bodyNo)||bodyNo.includes(c.bodyNo));
+
+    if(car){
+      car.tag=tag;
+      car.done=false;
+      car.history.push(`${now()} 一括札付け → ${tag}`);
+      count++;
+    }else{
+      notFound.push(bodyNo);
+    }
+  });
+
+  save();render();
+
+  alert(`札付け完了：${count}台\n見つからない：${notFound.join(", ")}`);
+}
+
+function filterTag(tag){
+  currentFilter=tag;
+  render();
+}
+
+function applyItemEdit(){
+  const item=items.find(i=>i.id===selectedItemId);
+  if(!item){alert("図形を選択してください");return;}
+
+  const old=item.name;
+  const newName=document.getElementById("editName").value.trim();
+
+  if(item.type==="line") item.name=newName;
+  else item.name=newName||item.name;
+
+  item.w=Number(document.getElementById("editW").value)||item.w;
+  item.h=Number(document.getElementById("editH").value)||item.h;
+
+  cars.forEach(c=>{if(c.place===old)c.place=item.name});
+  save();render();
+}
+
+function deleteSelectedItem(){
+  if(!selectedItemId){alert("図形を選択してください");return;}
+  const item=items.find(i=>i.id===selectedItemId);
+
+  if(confirm(`${item.name||"名称なし"}を削除しますか？`)){
+    items=items.filter(i=>i.id!==selectedItemId);
+    cars=cars.filter(c=>c.place!==item.name);
+    selectedItemId=null;
+    save();render();
+  }
+}
+
+function toggleEdit(){
+  editMode=!editMode;
+  document.getElementById("info").textContent=editMode?"編集ON：図形を動かせます":"編集OFF";
+}
+
+function updateSummary(){
+  const tags=["未定","洗車","車検","回送","納車","計量","出庫"];
+  document.getElementById("summary").innerHTML=
+    tags.map(t=>`${t}：${cars.filter(c=>c.tag===t&&!c.done).length}`).join("　");
+}
+
+function tagClass(tag){
+  if(tag==="洗車")return"wash";
+  if(tag==="車検")return"inspect";
+  if(tag==="回送")return"transfer";
+  if(tag==="納車")return"delivery";
+  if(tag==="計量")return"scale";
+  if(tag==="出庫")return"out";
+  return"none";
+}
+
+document.getElementById("search").oninput=e=>{
+  const q=e.target.value.trim().toLowerCase();
+  if(!q)return;
+
+  const hit=cars.find(c=>
+    c.company.toLowerCase().includes(q)||
+    c.bodyNo.toLowerCase().includes(q)
+  );
+
+  if(hit){
+    selectedCarId=hit.id;
+    const item=items.find(i=>i.name===hit.place);
+    if(item){
+      selectedItemId=item.id;
+      render();
+      document.querySelector(`[data-id="${item.id}"]`)?.scrollIntoView({behavior:"smooth",block:"center",inline:"center"});
+    }
+    document.getElementById("info").textContent=`検索結果：${hit.company} / ${hit.bodyNo} / ${hit.place} / ${hit.tag}`;
+  }
+};
+
+function resetAll(){
+  if(confirm("全データを削除しますか？")){
+    localStorage.removeItem("yard_items_v3");
+    localStorage.removeItem("yard_cars_v3");
+    location.reload();
+  }
+}
+
+function today(){
+  return new Date().toISOString().slice(0,10);
+}
+
+function now(){
+  const d=new Date();
+  return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+}
+
+map.onclick=()=>{
+  selectedItemId=null;
+  selectedCarId=null;
+  document.getElementById("info").textContent=editMode?"編集ON":"編集OFF / 車両未選択";
+  render();
+};
+
+render();
+</script>
+</body>
+</html>
