@@ -120,12 +120,8 @@
   .item.today-match .slot-label { background: #dc2626; color: white; }
   .item.highlight { outline: 4px solid #10b981; z-index: 40; }
 
-  @keyframes urgent-blink { from { transform: scale(1); } to { transform: scale(1.02); } }
-  @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
-
-  /* 指ズーム・スクロール最適化のためのメディアクエリ */
   @media (pointer: coarse) {
-    .map-wrap { overflow: hidden !important; } /* タッチデバイスでは1本指の誤スクロールを完全に防ぐ */
+    .map-wrap { overflow: hidden !important; }
   }
 </style>
 </head>
@@ -141,13 +137,17 @@
   </header>
 
   <div style="margin-bottom: 6px; display: flex; gap: 8px; align-items: center; background: #fff; padding: 6px 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); flex-wrap: wrap;">
-    <span style="font-size: 12px; font-weight: bold; color: #475569;">🔎 マップ拡大縮小（スマホは2本指でピンチ操作も可能）:</span>
+    <span style="font-size: 12px; font-weight: bold; color: #475569;">🔎 マップ拡大縮小:</span>
     <button onclick="window.changeZoom(0.1)" class="btn-sub" style="padding: 3px 12px; font-size: 11px; background: #0284c7; color: white; border: none;">➕ 拡大</button>
     <button onclick="window.changeZoom(-0.1)" class="btn-sub" style="padding: 3px 12px; font-size: 11px; background: #0284c7; color: white; border: none;">➖ 縮小</button>
     <button onclick="window.changeZoom(0)" class="btn-sub" style="padding: 3px 12px; font-size: 11px; background: #64748b; color: white; border: none;">等倍 (100%)</button>
     <span id="zoomTxt" style="font-size: 12px; font-weight: bold; color: #0284c7; margin-left: 4px; margin-right: 15px;">100%</span>
     
-    <span style="font-size: 12px; font-weight: bold; color: #475569;">📊 分析:</span>
+    <span style="font-size: 12px; font-weight: bold; color: #475569; border-left: 2px solid #cbd5e1; padding-left: 10px;">📱 スマホ2本指操作:</span>
+    <button id="touchModeMoveBtn" onclick="window.setTouchMode('move')" style="padding: 3px 12px; font-size: 11px; background: #0284c7; color: white; border: none; font-weight: bold; border-radius: 4px; cursor: pointer;">✋ 移動</button>
+    <button id="touchModeZoomBtn" onclick="window.setTouchMode('zoom')" style="padding: 3px 12px; font-size: 11px; background: #64748b; color: white; border: none; font-weight: bold; border-radius: 4px; cursor: pointer;">🔍 ズーム</button>
+
+    <span style="font-size: 12px; font-weight: bold; color: #475569; margin-left: auto;">📊 分析:</span>
     <button onclick="window.showStats()" class="btn-success" style="padding: 3px 12px; font-size: 11px; font-weight: bold; background: #10b981;">📊 占有率・容積率を確認</button>
   </div>
 
@@ -188,6 +188,33 @@
       </div>
     </div>
   </section>
+
+  <section class="form-panel">
+    <h3>③ 車校の入場登録 ／ 選択中の情報書き換え</h3>
+    <div class="form-grid">
+      <div class="input-group">
+        <label>車種</label>
+        <select id="carType"></select>
+      </div>      <div class="input-group">
+        <label>ユーザー名</label>
+        <input id="userName" placeholder="例：GK /◯◯運送">
+      </div>      <div class="input-group">
+        <label>車体番号</label>
+        <input id="bodyNo" placeholder="例：119431">
+      </div>      <div class="input-group">
+        <label>次回作業</label>
+        <select id="status"></select>
+      </div>      <div class="input-group">
+        <label>作業予定日（※空欄でも登録OK）</label>
+        <input type="date" id="actionDate">
+      </div>      <div class="input-group">
+        <label>駐車位置</label>
+        <select id="place"></select>
+      </div>    </div>    <div class="form-buttons">
+      <button onclick="addCar()" class="btn-success">➕ 新しく場内へ配置</button>
+      <button onclick="updateCar()" class="btn-primary">📝 選択中の車を更新（書き換え）</button>
+      <button onclick="clearCar()" class="btn-danger" style="background:#e11d48;">🚗 選択中の車を出庫（消去）</button>
+    </div>  </section>
 
   <section class="edit-panel">
     <h3>📐 場内図の図形変更・新しい駐車マスの作成・線の追加</h3>
@@ -255,33 +282,6 @@
       <button onclick="toggleEditMode()" id="editModeBtn" class="btn-edit-toggle" style="margin-left:auto;">🔧 レイアウト編集を開始</button>      <button onclick="clearCarsBulk()" class="btn-danger" style="height:34px; background:#ea580c;">🧹 車を一括消去</button>      <button onclick="deleteSelectedItem()" class="btn-danger" style="height:34px;">🗑️ 図形を削除</button>    </div>
   </section>
 
-  <section class="form-panel">
-    <h3>③ 車校の入場登録 ／ 選択中の情報書き換え</h3>
-    <div class="form-grid">
-      <div class="input-group">
-        <label>車種</label>
-        <select id="carType"></select>
-      </div>      <div class="input-group">
-        <label>ユーザー名</label>
-        <input id="userName" placeholder="例：GK /◯◯運送">
-      </div>      <div class="input-group">
-        <label>車体番号</label>
-        <input id="bodyNo" placeholder="例：119431">
-      </div>      <div class="input-group">
-        <label>次回作業</label>
-        <select id="status"></select>
-      </div>      <div class="input-group">
-        <label>作業予定日（※空欄でも登録OK）</label>
-        <input type="date" id="actionDate">
-      </div>      <div class="input-group">
-        <label>駐車位置</label>
-        <select id="place"></select>
-      </div>    </div>    <div class="form-buttons">
-      <button onclick="addCar()" class="btn-success">➕ 新しく場内へ配置</button>
-      <button onclick="updateCar()" class="btn-primary">📝 選択中の車を更新（書き換え）</button>
-      <button onclick="clearCar()" class="btn-danger" style="background:#e11d48;">🚗 選択中の車を出庫（消去）</button>
-    </div>  </section>
-
   <section class="form-panel" style="background: #f0fdf4; border: 1px solid #bbf7d0;">
     <h3>④ 複数車両の一括入場登録（まとめて一気に配置）</h3>
     <div style="font-size: 11px; margin-bottom: 8px; color: #166534; font-weight: bold; line-height: 1.4;">
@@ -326,7 +326,6 @@
 
   var zoomLevel = 1.0;
 
-  // 4-1〜7-1まで全て最大「8番」まで対応できるようにマージ済み
   var placesDef = [
     "1-1","1-2","1-3","1-4","1-5","1-6","1-7",
     "2-1","2-2","2-3","2-4","2-5","2-6","2-7","2-8","2-9","2-10","2-11",
@@ -367,7 +366,7 @@
       if (p.startsWith("1-")) { x = 500 + Number(p.split("-")[1]) * 85; y = 530; }
       else if (p.startsWith("2-")) { x = 500 + Number(p.split("-")[1]) * 85; y = 430; }
       else if (p.startsWith("3-")) { x = 500 + Number(p.split("-")[1]) * 85; y = 290; }
-      else if (p.startsWith("4-")) { x = 430; y = 110 + Number(p.split("-")[1]) * 65; } // 4列目も縦並びに補正済み
+      else if (p.startsWith("4-")) { x = 430; y = 110 + Number(p.split("-")[1]) * 65; }
       else if (p.startsWith("5-")) { x = 340; y = 110 + Number(p.split("-")[1]) * 65; }
       else if (p.startsWith("6-")) { x = 250; y = 110 + Number(p.split("-")[1]) * 65; }
       else if (p.startsWith("7-")) { x = 160; y = 110 + Number(p.split("-")[1]) * 65; }
@@ -827,7 +826,7 @@
       document.getElementById("bodyNo").value = car.bodyNo;
       document.getElementById("status").value = car.status;
       document.getElementById("actionDate").value = car.date || "";
-      infoBar.textContent = "【車両選択中】" + car.user + " (" + car.bodyNo + ") ➔ 移動は別のマスをタップ。変更は上で変更して「更新」";
+      infoBar.textContent = "【車両選択中】" + car.user + " (" + car.bodyNo + ") ➔ 移動は別のマスをタップ。変更は下で変更して「更新」";
       render();
     } else {
       if (selectedPlace === place) { 
@@ -848,7 +847,7 @@
         destCar.place = selectedPlace; 
         addLog("[" + tStr + "] 🔄 位置入替: " + srcCar.user + "(" + srcCar.bodyNo + ") ⇄ " + destCar.user + "(" + destCar.bodyNo + ") [" + selectedPlace + " ⇄ " + place + "]");
       } else { 
-        addLog("[" + tStr + "] ➔ 車両移動: " + srcCar.user + "(" + srcCar.bodyNo + ") [" + selectedPlace + " ➔ " + place + "]");
+        addLog("[" + tStr + "] ➔ 車旧移動: " + srcCar.user + "(" + srcCar.bodyNo + ") [" + selectedPlace + " ➔ " + place + "]");
         srcCar.place = place; 
       }
       selectedPlace = null; save(); render();
@@ -886,6 +885,25 @@
       }).catch(function(err){ console.error("同期失敗:", err); });
   }
 
+  window.touchMode = 'move';
+  window.setTouchMode = function(mode) {
+    window.touchMode = mode;
+    var moveBtn = document.getElementById("touchModeMoveBtn");
+    var zoomBtn = document.getElementById("touchModeZoomBtn");
+    var infoBar = document.getElementById("infoBar");
+    if (!moveBtn || !zoomBtn) return;
+    
+    if (mode === 'move') {
+      moveBtn.style.background = "#0284c7";
+      zoomBtn.style.background = "#64748b";
+      if (!editMode && !paintMode) infoBar.textContent = "通常モード：空マスをタップすると駐車位置が自動セットされます。スマホは2本指でマップ移動。";
+    } else {
+      moveBtn.style.background = "#64748b";
+      zoomBtn.style.background = "#0284c7";
+      if (!editMode && !paintMode) infoBar.textContent = "【🔍 ズーム中】スマホは2本指の開閉（ピンチ操作）でマップを拡大縮小できます。";
+    }
+  };
+
   function startApp() {
     loadData(); init(); render(); renderLogs();
     
@@ -895,7 +913,6 @@
       mapEl.ontouchstart = function(e) { if(editMode && e.target === mapEl) startRangeSelection(e); };
     }
 
-    // スマホ・タブレット用：2本指ドラッグ移動 & ピンチズーム処理 (1本指はサイト自体のスクロールに流す)
     var mapWrapEl = document.querySelector(".map-wrap");
     var isTwoFingers = false;
     var startTouchDistance = 0;
@@ -916,7 +933,7 @@
         startTouchY = (t1.clientY + t2.clientY) / 2;
         startScrollLeft = mapWrapEl.scrollLeft;
         startScrollTop = mapWrapEl.scrollTop;
-        e.preventDefault(); // 2本指時はサイト全体の挙動をロック
+        e.preventDefault();
       } else {
         isTwoFingers = false;
       }
@@ -928,21 +945,21 @@
         var t1 = e.touches[0];
         var t2 = e.touches[1];
         
-        // ① ピンチによる拡大縮小
-        var dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
-        if (startTouchDistance > 0) {
-          var factor = dist / startTouchDistance;
-          zoomLevel = Math.max(0.2, Math.min(2.0, startZoom * factor));
-          applyZoom();
+        if (window.touchMode === 'zoom') {
+          var dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+          if (startTouchDistance > 0) {
+            var factor = dist / startTouchDistance;
+            zoomLevel = Math.max(0.2, Math.min(2.0, startZoom * factor));
+            applyZoom();
+          }
+        } else {
+          var centerX = (t1.clientX + t2.clientX) / 2;
+          var centerY = (t1.clientY + t2.clientY) / 2;
+          var dx = centerX - startTouchX;
+          var dy = centerY - startTouchY;
+          mapWrapEl.scrollLeft = startScrollLeft - dx;
+          mapWrapEl.scrollTop = startScrollTop - dy;
         }
-        
-        // ② 2本指によるマップスクロール
-        var centerX = (t1.clientX + t2.clientX) / 2;
-        var centerY = (t1.clientY + t2.clientY) / 2;
-        var dx = centerX - startTouchX;
-        var dy = centerY - startTouchY;
-        mapWrapEl.scrollLeft = startScrollLeft - dx;
-        mapWrapEl.scrollTop = startScrollTop - dy;
       }
     }, { passive: false });
 
@@ -1359,15 +1376,36 @@
     var text = document.getElementById("bulkText").value.trim();
     if (!text) { alert("リストが空欄です。"); return; }
     bulkMatchedNo = [];
+    var matchedCarsInfo = [];
+    
     text.split('\n').forEach(function(line) {
       line.trim().split(/\s+/).forEach(function(part) {
         var clean = part.trim();
         if (clean.length >= 3) {
-          cars.forEach(function(c) { if (c.bodyNo.includes(clean) && !bulkMatchedNo.includes(c.bodyNo)) { bulkMatchedNo.push(c.bodyNo); } });
+          cars.forEach(function(c) { 
+            if (c.bodyNo.includes(clean)) {
+              if (!bulkMatchedNo.includes(c.bodyNo)) { 
+                bulkMatchedNo.push(c.bodyNo); 
+              }
+              if (!matchedCarsInfo.some(function(info) { return info.bodyNo === c.bodyNo; })) {
+                matchedCarsInfo.push({ place: c.place, user: c.user, bodyNo: c.bodyNo, status: c.status });
+              }
+            }
+          });
         }
       });
     });
     render();
+
+    if (matchedCarsInfo.length > 0) {
+      var msg = "【朝リスト照合結果】\n一致する車両が場内に 【 " + matchedCarsInfo.length + " 台 】 見つかりました：\n\n";
+      matchedCarsInfo.forEach(function(c) {
+        msg += "📍位置: " + c.place + " | " + c.user + " (" + c.bodyNo + ") [" + c.status + "]\n";
+      });
+      alert(msg);
+    } else {
+      alert("【朝リスト照合結果】\nリストに一致する車両は場内に見つかりませんでした。");
+    }
   };
 
   window.clearBulkMatch = function() { bulkMatchedNo = []; document.getElementById("bulkText").value = ""; render(); };
