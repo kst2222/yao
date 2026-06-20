@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>UD八尾 場内配置システム・パーフェクト決定版</title>
+<title>UD八尾 場内配置</title>
 <style>
   body { margin: 0; font-family: system-ui, sans-serif; background: #eef2f5; user-select: none; color: #333; }
   .app { padding: 12px; }
@@ -122,18 +122,72 @@
 
   @keyframes urgent-blink { from { transform: scale(1); } to { transform: scale(1.02); } }
   @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+
+  /* 指ズーム・スクロール最適化のためのメディアクエリ */
+  @media (pointer: coarse) {
+    .map-wrap { overflow: hidden !important; } /* タッチデバイスでは1本指の誤スクロールを完全に防ぐ */
+  }
 </style>
 </head>
 <body>
 
 <div class="app">
   <header>
-    <h1>UD八尾 場内配置・運行管理システム</h1>
+    <h1>UD八尾 場内配置</h1>
     <div class="search-box">
       <input id="search" placeholder="検索（車体番号・ユーザー）">
       <button onclick="clearSearch()" id="clearBtn">クリア</button>
     </div>
   </header>
+
+  <div style="margin-bottom: 6px; display: flex; gap: 8px; align-items: center; background: #fff; padding: 6px 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); flex-wrap: wrap;">
+    <span style="font-size: 12px; font-weight: bold; color: #475569;">🔎 マップ拡大縮小（スマホは2本指でピンチ操作も可能）:</span>
+    <button onclick="window.changeZoom(0.1)" class="btn-sub" style="padding: 3px 12px; font-size: 11px; background: #0284c7; color: white; border: none;">➕ 拡大</button>
+    <button onclick="window.changeZoom(-0.1)" class="btn-sub" style="padding: 3px 12px; font-size: 11px; background: #0284c7; color: white; border: none;">➖ 縮小</button>
+    <button onclick="window.changeZoom(0)" class="btn-sub" style="padding: 3px 12px; font-size: 11px; background: #64748b; color: white; border: none;">等倍 (100%)</button>
+    <span id="zoomTxt" style="font-size: 12px; font-weight: bold; color: #0284c7; margin-left: 4px; margin-right: 15px;">100%</span>
+    
+    <span style="font-size: 12px; font-weight: bold; color: #475569;">📊 分析:</span>
+    <button onclick="window.showStats()" class="btn-success" style="padding: 3px 12px; font-size: 11px; font-weight: bold; background: #10b981;">📊 占有率・容積率を確認</button>
+  </div>
+
+  <div class="info-bar" id="infoBar">通常モード：空マスをタップすると駐車位置が自動セットされます。スマホは2本指でマップ移動。</div>
+
+  <div class="map-wrap">
+    <div class="map" id="map"></div>
+  </div>
+
+  <section class="bulk-search-panel">
+    <h3>① 朝の作業リスト照合（車体番号の一部・下4桁でもOK）</h3>
+    <textarea id="bulkText" placeholder="朝のリスト（車体番号のみ、またはバラバラのテキスト）を貼り付けてください。&#13;例：&#13;9431&#13;582&#13;119610"></textarea>
+    <div class="btn-group">
+      <button onclick="matchBulkList()" class="btn-primary">朝リストと場内を照合（部分検索）</button>
+      <button onclick="clearBulkMatch()" class="btn-sub">照合を解除</button>
+    </div>
+  </section>
+
+  <section class="paint-panel">
+    <h3>② 簡易一括色塗り（スタンプモード） ★大量の車を一気に色付けするとき</h3>
+    <div class="paint-grid">
+      <div class="input-group">
+        <label>設定したい作業（色）</label>
+        <select id="paintStatus"></select>
+      </div>
+      <div class="input-group">
+        <label>設定したい日付</label>
+        <div class="flex-row">
+          <input type="date" id="paintDate">
+          <button onclick="setPaintDate(0)" class="btn-date" id="btn-today">今日</button>
+          <button onclick="setPaintDate(1)" class="btn-date" id="btn-tomorrow">明日</button>
+          <button onclick="setPaintDate(2)" class="btn-date" id="btn-dafter">明後日</button>
+        </div>
+      </div>
+      <div class="input-group toggle-group">
+        <label>モード切替</label>
+        <button id="paintModeBtn" onclick="togglePaintMode()" class="btn-paint-toggle">🎨 スタンプモードを開始する</button>
+      </div>
+    </div>
+  </section>
 
   <section class="edit-panel">
     <h3>📐 場内図の図形変更・新しい駐車マスの作成・線の追加</h3>
@@ -198,30 +252,8 @@
         </div>
       </div>
 
-      <button onclick="toggleEditMode()" id="editModeBtn" class="btn-edit-toggle" style="margin-left:auto;">🔧 レイアウト編集を開始</button>      <button onclick="clearCarsBulk()" class="btn-danger" style="height:34px; background:#ea580c;">🧹 車を一括消去</button>      <button onclick="deleteSelectedItem()" class="btn-danger" style="height:34px;">🗑️ 図形を削除</button>    </div>  </section>
-
-  <section class="bulk-search-panel">
-    <h3>① 朝の作業リスト照合（車体番号の一部・下4桁でもOK）</h3>
-    <textarea id="bulkText" placeholder="朝のリスト（車体番号のみ、またはバラバラのテキスト）を貼り付けてください。&#13;例：&#13;9431&#13;582&#13;119610"></textarea>
-    <div class="btn-group">
-      <button onclick="matchBulkList()" class="btn-primary">朝リストと場内を照合（部分検索）</button>
-      <button onclick="clearBulkMatch()" class="btn-sub">照合を解除</button>
-    </div>  </section>
-
-  <section class="paint-panel">
-    <h3>② 簡易一括色塗り（スタンプモード） ★大量の車を一気に色付けするとき</h3>
-    <div class="paint-grid">
-      <div class="input-group">
-        <label>設定したい作業（色）</label>
-        <select id="paintStatus"></select>
-      </div>      <div class="input-group">
-        <label>設定したい日付</label>
-        <div class="flex-row">
-          <input type="date" id="paintDate">
-          <button onclick="setPaintDate(0)" class="btn-date" id="btn-today">今日</button>          <button onclick="setPaintDate(1)" class="btn-date" id="btn-tomorrow">明日</button>          <button onclick="setPaintDate(2)" class="btn-date" id="btn-dafter">明後日</button>        </div>      </div>      <div class="input-group toggle-group">
-        <label>モード切替</label>
-        <button id="paintModeBtn" onclick="togglePaintMode()" class="btn-paint-toggle">🎨 スタンプモードを開始する</button>
-      </div>    </div>  </section>
+      <button onclick="toggleEditMode()" id="editModeBtn" class="btn-edit-toggle" style="margin-left:auto;">🔧 レイアウト編集を開始</button>      <button onclick="clearCarsBulk()" class="btn-danger" style="height:34px; background:#ea580c;">🧹 車を一括消去</button>      <button onclick="deleteSelectedItem()" class="btn-danger" style="height:34px;">🗑️ 図形を削除</button>    </div>
+  </section>
 
   <section class="form-panel">
     <h3>③ 車校の入場登録 ／ 選択中の情報書き換え</h3>
@@ -251,7 +283,7 @@
     </div>  </section>
 
   <section class="form-panel" style="background: #f0fdf4; border: 1px solid #bbf7d0;">
-    <h3>④ 複数車両の一括入場登録（最大100台まとめて一気に配置）</h3>
+    <h3>④ 複数車両の一括入場登録（まとめて一気に配置）</h3>
     <div style="font-size: 11px; margin-bottom: 8px; color: #166534; font-weight: bold; line-height: 1.4;">
       💡 エクセルのデータを列ごと丸ごとコピーしてそのまま貼り付け可能です！<br>
       【駐車位置 ユーザー名 車体番号】の3列形式（車種は上の③で選んでいるものが自動で入ります）、または【駐車位置 車種 ユーザー名 車体番号】の4列形式のどちらでも1行ずつ自動判別して登録されます。
@@ -285,23 +317,7 @@
       </ul>      <div style="margin-top: 8px; text-align: right;">
         <button onclick="window.clearLogs()" class="btn-sub" style="padding: 3px 10px; font-size: 11px; background: #94a3b8;">ログ履歴をクリア</button>
       </div>    </div>  </details>
-
-  <div class="info-bar" id="infoBar">通常モード：空マスをタップすると駐車位置が自動セットされます。</div>
-
-  <div style="margin-bottom: 6px; display: flex; gap: 8px; align-items: center; background: #fff; padding: 6px 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); flex-wrap: wrap;">
-    <span style="font-size: 12px; font-weight: bold; color: #475569;">🔎 マップ拡大縮小（スマホ・PC対応）:</span>
-    <button onclick="window.changeZoom(0.1)" class="btn-sub" style="padding: 3px 12px; font-size: 11px; background: #0284c7; color: white; border: none;">➕ 拡大</button>
-    <button onclick="window.changeZoom(-0.1)" class="btn-sub" style="padding: 3px 12px; font-size: 11px; background: #0284c7; color: white; border: none;">➖ 縮小</button>
-    <button onclick="window.changeZoom(0)" class="btn-sub" style="padding: 3px 12px; font-size: 11px; background: #64748b; color: white; border: none;">等倍 (100%)</button>
-    <span id="zoomTxt" style="font-size: 12px; font-weight: bold; color: #0284c7; margin-left: 4px; margin-right: 15px;">100%</span>
-    
-    <span style="font-size: 12px; font-weight: bold; color: #475569;">📊 分析:</span>
-    <button onclick="window.showStats()" class="btn-success" style="padding: 3px 12px; font-size: 11px; font-weight: bold; background: #10b981;">📊 占有率・容積率を確認</button>
-  </div>
-
-  <div class="map-wrap">
-    <div class="map" id="map"></div>
-  </div></div>
+</div>
 
 <script>
 (function() {
@@ -385,7 +401,6 @@
     return m + "/" + d + " " + h + ":" + min;
   }
 
-  // ログ生成時にその瞬間のデータ（cars, items）を丸ごと内部に記憶するように強化
   function addLog(msg) {
     var snapshotCars = JSON.parse(JSON.stringify(cars));
     var snapshotItems = JSON.parse(JSON.stringify(items));
@@ -412,7 +427,6 @@
       var isObject = (log && typeof log === 'object' && log.msg);
       var msg = isObject ? log.msg : log;
       
-      // クリックできる状態のスタイル調整（ホバーで薄く青くなる）
       var style = isObject ? "border-bottom: 1px solid #f1f5f9; padding: 3px 0; cursor: pointer; transition: background 0.1s;" : "border-bottom: 1px solid #f1f5f9; padding: 3px 0;";
       var hoverAction = isObject ? " onmouseover='this.style.background=\"#e0f2fe\"' onmouseout='this.style.background=\"none\"' " : "";
       var titleText = isObject ? " title='クリックしてこの時点の場内データに復元する（要パスワード）' " : "";
@@ -421,7 +435,6 @@
     }).join("");
   }
 
-  // 選択したログの時点の状態にまるごとデータを巻き戻す（Undo）処理を追加
   window.rollbackLog = function(idx) {
     var log = moveLogs[idx];
     if (!log || typeof log !== 'object' || !log.cars) {
@@ -429,7 +442,6 @@
       return;
     }
 
-    // 「レイアウト編集できる管理者」のみに制限するためパスワード入力を要求
     var pw = prompt("【履歴からデータを巻き戻します】\n進めるには管理者パスワードを入力してください:");
     if (pw !== ADMIN_PASSWORD) {
       alert("パスワードが違います。復元権限がありません。");
@@ -437,18 +449,15 @@
     }
 
     if (confirm("本当にこのログの時点の状態に場内配置を戻しますか？\n\n対象：\n" + log.msg)) {
-      // 過去のディープコピーから状態を上書き復元
       cars = JSON.parse(JSON.stringify(log.cars));
       items = JSON.parse(JSON.stringify(log.items));
 
       var currentTimestamp = getTimeLogString();
 
-      // 先に現在のデータを保存＆再初期化
       save();
       init();
       render();
 
-      // 戻した後に「いつ戻したか」がわかるよう新しいログを一番上に積む
       addLog("[" + currentTimestamp + "] ⚠️ 履歴復元: 過去の場内データに復元しました。");
       
       alert("指定した時点の状態に復元しました！");
@@ -885,6 +894,63 @@
       mapEl.onmousedown = function(e) { if(editMode && e.target === mapEl) startRangeSelection(e); };
       mapEl.ontouchstart = function(e) { if(editMode && e.target === mapEl) startRangeSelection(e); };
     }
+
+    // スマホ・タブレット用：2本指ドラッグ移動 & ピンチズーム処理 (1本指はサイト自体のスクロールに流す)
+    var mapWrapEl = document.querySelector(".map-wrap");
+    var isTwoFingers = false;
+    var startTouchDistance = 0;
+    var startZoom = 1.0;
+    var startTouchX = 0;
+    var startTouchY = 0;
+    var startScrollLeft = 0;
+    var startScrollTop = 0;
+
+    mapWrapEl.addEventListener("touchstart", function(e) {
+      if (e.touches.length === 2) {
+        isTwoFingers = true;
+        var t1 = e.touches[0];
+        var t2 = e.touches[1];
+        startTouchDistance = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+        startZoom = zoomLevel;
+        startTouchX = (t1.clientX + t2.clientX) / 2;
+        startTouchY = (t1.clientY + t2.clientY) / 2;
+        startScrollLeft = mapWrapEl.scrollLeft;
+        startScrollTop = mapWrapEl.scrollTop;
+        e.preventDefault(); // 2本指時はサイト全体の挙動をロック
+      } else {
+        isTwoFingers = false;
+      }
+    }, { passive: false });
+
+    mapWrapEl.addEventListener("touchmove", function(e) {
+      if (isTwoFingers && e.touches.length === 2) {
+        e.preventDefault();
+        var t1 = e.touches[0];
+        var t2 = e.touches[1];
+        
+        // ① ピンチによる拡大縮小
+        var dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+        if (startTouchDistance > 0) {
+          var factor = dist / startTouchDistance;
+          zoomLevel = Math.max(0.2, Math.min(2.0, startZoom * factor));
+          applyZoom();
+        }
+        
+        // ② 2本指によるマップスクロール
+        var centerX = (t1.clientX + t2.clientX) / 2;
+        var centerY = (t1.clientY + t2.clientY) / 2;
+        var dx = centerX - startTouchX;
+        var dy = centerY - startTouchY;
+        mapWrapEl.scrollLeft = startScrollLeft - dx;
+        mapWrapEl.scrollTop = startScrollTop - dy;
+      }
+    }, { passive: false });
+
+    mapWrapEl.addEventListener("touchend", function(e) {
+      if (e.touches.length < 2) {
+        isTwoFingers = false;
+      }
+    });
 
     if (GAS_URL && GAS_URL.trim() !== "") {
       syncFromCloud(); setInterval(syncFromCloud, 3000); 
