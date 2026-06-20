@@ -141,11 +141,7 @@
       <div class="input-group" style="min-width: 120px;">
         <label>追加する図形</label>
         <select id="addType">
-          <option value="slot">車両場所（マス）</option>
-          <option value="building">建物エリア（グレー）</option>
-          <option value="road">道路・レーン（点線）</option>
-          <option value="line">線（黒い境界線）</option>
-        </select>
+          <option value="slot">車両場所（マス）</option>          <option value="building">建物エリア（グレー）</option>          <option value="road">道路・レーン（点線）</option>          <option value="line">線（黒い境界線）</option>        </select>
       </div>
       <div class="input-group" style="min-width: 130px;">
         <label>名前（レーン名や建屋名）</label>
@@ -158,11 +154,7 @@
       <div class="input-group" style="min-width: 120px;">
         <label>一括並び方向</label>
         <select id="bulkDir">
-          <option value="x-plus">右横に並べる (▶)</option>
-          <option value="x-minus">左横に並べる (◀)</option>
-          <option value="y-plus">下に並べる (▼)</option>
-          <option value="y-minus">上に並べる (▲)</option>
-        </select>
+          <option value="x-plus">右横に並べる (▶)</option>          <option value="x-minus">左横に並べる (◀)</option>          <option value="y-plus">下に並べる (▼)</option>          <option value="y-minus">上に並べる (▲)</option>        </select>
       </div>
       <div class="input-group" style="min-width: 60px; max-width: 65px;">
         <label>間隔(px)</label>
@@ -191,17 +183,12 @@
       <div class="input-group" style="min-width: 80px;">
         <label>🔄 図形回転</label>
         <select id="editRotate" onchange="applyItemStyleCustom()">
-          <option value="0">0° (標準)</option>
-          <option value="90">90° (右傾)</option>
-          <option value="180">180° (反転)</option>
-        </select>
+          <option value="0">0° (標準)</option>          <option value="90">90° (右傾)</option>          <option value="180">180° (反転)</option>        </select>
       </div>
       <div class="input-group" style="min-width: 80px;">
         <label>📝 文字方向</label>
         <select id="editWriting" onchange="applyItemStyleCustom()">
-          <option value="horizontal">横文字</option>
-          <option value="vertical">縦文字</option>
-        </select>
+          <option value="horizontal">横文字</option>          <option value="vertical">縦文字</option>        </select>
       </div>
       <div class="input-group" style="min-width: 175px;">
         <label>🗂️ 複数一括整列（範囲選択時）</label>
@@ -211,24 +198,15 @@
         </div>
       </div>
 
-      <button onclick="toggleEditMode()" id="editModeBtn" class="btn-edit-toggle" style="margin-left:auto;">🔧 レイアウト編集を開始</button>
-      <button onclick="clearCarsBulk()" class="btn-danger" style="height:34px; background:#ea580c;">🧹 車を一括消去</button>
-      <button onclick="deleteSelectedItem()" class="btn-danger" style="height:34px;">🗑️ 図形を削除</button>
-    </div>
-  </section>
+      <button onclick="toggleEditMode()" id="editModeBtn" class="btn-edit-toggle" style="margin-left:auto;">🔧 レイアウト編集を開始</button>      <button onclick="clearCarsBulk()" class="btn-danger" style="height:34px; background:#ea580c;">🧹 車を一括消去</button>      <button onclick="deleteSelectedItem()" class="btn-danger" style="height:34px;">🗑️ 図形を削除</button>    </div>  </section>
 
   <section class="bulk-search-panel">
     <h3>① 朝の作業リスト照合（車体番号の一部・下4桁でもOK）</h3>
-    <textarea id="bulkText" placeholder="朝のリスト（車体番号のみ、またはバラバラのテキスト）を貼り付けてください。
-例：
-9431
-582
-119610"></textarea>
+    <textarea id="bulkText" placeholder="朝のリスト（車体番号のみ、またはバラバラのテキスト）を貼り付けてください。&#13;例：&#13;9431&#13;582&#13;119610"></textarea>
     <div class="btn-group">
       <button onclick="matchBulkList()" class="btn-primary">朝リストと場内を照合（部分検索）</button>
       <button onclick="clearBulkMatch()" class="btn-sub">照合を解除</button>
-    </div>
-  </section>
+    </div>  </section>
 
   <section class="paint-panel">
     <h3>② 簡易一括色塗り（スタンプモード） ★大量の車を一気に色付けするとき</h3>
@@ -236,72 +214,51 @@
       <div class="input-group">
         <label>設定したい作業（色）</label>
         <select id="paintStatus"></select>
-      </div>
-      <div class="input-group">
+      </div>      <div class="input-group">
         <label>設定したい日付</label>
         <div class="flex-row">
           <input type="date" id="paintDate">
-          <button onclick="setPaintDate(0)" class="btn-date" id="btn-today">今日</button>
-          <button onclick="setPaintDate(1)" class="btn-date" id="btn-tomorrow">明日</button>
-          <button onclick="setPaintDate(2)" class="btn-date" id="btn-dafter">明後日</button>
-        </div>
-      </div>
-      <div class="input-group toggle-group">
+          <button onclick="setPaintDate(0)" class="btn-date" id="btn-today">今日</button>          <button onclick="setPaintDate(1)" class="btn-date" id="btn-tomorrow">明日</button>          <button onclick="setPaintDate(2)" class="btn-date" id="btn-dafter">明後日</button>        </div>      </div>      <div class="input-group toggle-group">
         <label>モード切替</label>
         <button id="paintModeBtn" onclick="togglePaintMode()" class="btn-paint-toggle">🎨 スタンプモードを開始する</button>
-      </div>
-    </div>
-  </section>
+      </div>    </div>  </section>
 
   <section class="form-panel">
-    <h3>③ 車両の入場登録 ／ 選択中の情報書き換え</h3>
+    <h3>③ 車校の入場登録 ／ 選択中の情報書き換え</h3>
     <div class="form-grid">
       <div class="input-group">
         <label>車種</label>
         <select id="carType"></select>
-      </div>
-      <div class="input-group">
+      </div>      <div class="input-group">
         <label>ユーザー名</label>
         <input id="userName" placeholder="例：GK /◯◯運送">
-      </div>
-      <div class="input-group">
+      </div>      <div class="input-group">
         <label>車体番号</label>
         <input id="bodyNo" placeholder="例：119431">
-      </div>
-      <div class="input-group">
+      </div>      <div class="input-group">
         <label>次回作業</label>
         <select id="status"></select>
-      </div>
-      <div class="input-group">
+      </div>      <div class="input-group">
         <label>作業予定日（※空欄でも登録OK）</label>
         <input type="date" id="actionDate">
-      </div>
-      <div class="input-group">
+      </div>      <div class="input-group">
         <label>駐車位置</label>
         <select id="place"></select>
-      </div>
-    </div>
-    <div class="form-buttons">
+      </div>    </div>    <div class="form-buttons">
       <button onclick="addCar()" class="btn-success">➕ 新しく場内へ配置</button>
       <button onclick="updateCar()" class="btn-primary">📝 選択中の車を更新（書き換え）</button>
       <button onclick="clearCar()" class="btn-danger" style="background:#e11d48;">🚗 選択中の車を出庫（消去）</button>
-    </div>
-  </section>
+    </div>  </section>
 
   <section class="form-panel" style="background: #f0fdf4; border: 1px solid #bbf7d0;">
     <h3>④ 複数車両の一括入場登録（最大100台まとめて一気に配置）</h3>
     <div style="font-size: 11px; margin-bottom: 8px; color: #166534; font-weight: bold; line-height: 1.4;">
       💡 エクセルのデータを列ごと丸ごとコピーしてそのまま貼り付け可能です！<br>
       【駐車位置 ユーザー名 車体番号】の3列形式（車種は上の③で選んでいるものが自動で入ります）、または【駐車位置 車種 ユーザー名 車体番号】の4列形式のどちらでも1行ずつ自動判別して登録されます。
-    </div>
-    <textarea id="bulkCarText" placeholder="【入力形式の例（エクセルの3列コピペ）】
-1-1 朝ま 12345
-1-2 麻田 223442
-1-3 大竹 11564" style="height: 110px; font-family: monospace;"></textarea>
+    </div>    <textarea id="bulkCarText" placeholder="【入力形式の例（エクセルの3列コピペ）】&#13;1-1 朝ま 12345&#13;1-2 麻田 223442&#13;1-3 大竹 11564" style="height: 110px; font-family: monospace;"></textarea>
     <div class="form-buttons" style="margin-top: 8px;">
       <button onclick="addCarsBulk()" class="btn-success" style="background: #16a34a;">➕ まとめて場内へ配置（一括登録）</button>
-    </div>
-  </section>
+    </div>  </section>
 
   <details class="master-settings">
     <summary>⚙️ 選択肢の追加・カスタマイズ</summary>
@@ -311,31 +268,23 @@
         <div class="flex-row">
           <input id="newType" placeholder="例：CD / CG">
           <button onclick="addMasterItem('type')">追加</button>
-        </div>
-        <ul id="typeList" class="master-list"></ul>
-      </div>
-      <div class="setting-item">
+        </div>        <ul id="typeList" class="master-list"></ul>
+      </div>      <div class="setting-item">
         <h4>作業・ステータスの追加</h4>
         <div class="flex-row">
           <input id="newStatus" placeholder="例：オイル交換">
           <button onclick="addMasterItem('status')">追加</button>
-        </div>
-        <ul id="statusList" class="master-list"></ul>
-      </div>
-    </div>
-  </details>
+        </div>        <ul id="statusList" class="master-list"></ul>
+      </div>    </div>  </details>
 
   <details class="master-settings" style="background: #f1f5f9; border: 1px solid #cbd5e1;">
-    <summary>📋 車両の移動履歴ログ（直近100件）</summary>
+    <summary>📋 車両の移動履歴ログ（直近100件）★クリックで過去の状態に復元可能</summary>
     <div style="background: #fff; padding: 10px; border-radius: 4px; margin-top: 8px;">
       <ul id="logList" style="list-style: none; padding: 0; margin: 0; max-height: 160px; overflow-y: auto; font-size: 12px; font-family: monospace; line-height: 1.6; color: #334155;">
         <li style="color: #94a3b8;">まだ移動履歴はありません。</li>
-      </ul>
-      <div style="margin-top: 8px; text-align: right;">
+      </ul>      <div style="margin-top: 8px; text-align: right;">
         <button onclick="window.clearLogs()" class="btn-sub" style="padding: 3px 10px; font-size: 11px; background: #94a3b8;">ログ履歴をクリア</button>
-      </div>
-    </div>
-  </details>
+      </div>    </div>  </details>
 
   <div class="info-bar" id="infoBar">通常モード：空マスをタップすると駐車位置が自動セットされます。</div>
 
@@ -352,8 +301,7 @@
 
   <div class="map-wrap">
     <div class="map" id="map"></div>
-  </div>
-</div>
+  </div></div>
 
 <script>
 (function() {
@@ -362,14 +310,15 @@
 
   var zoomLevel = 1.0;
 
+  // 4-1〜7-1まで全て最大「8番」まで対応できるようにマージ済み
   var placesDef = [
     "1-1","1-2","1-3","1-4","1-5","1-6","1-7",
     "2-1","2-2","2-3","2-4","2-5","2-6","2-7","2-8","2-9","2-10","2-11",
     "3-1","3-2","3-3","3-4","3-5","3-6","3-7","3-8","3-9","3-10","3-11","3-12","3-13",
-    "4-1","4-2","4-3",
-    "5-1","5-2","5-3","5-4","5-5","5-6","5-7",
-    "6-1","6-2","6-3","6-4","6-5","6-6","6-7",
-    "7-1","7-2","7-3","7-4","7-5","7-6","7-7",
+    "4-1","4-2","4-3","4-4","4-5","4-6","4-7","4-8",
+    "5-1","5-2","5-3","5-4","5-5","5-6","5-7","5-8",
+    "6-1","6-2","6-3","6-4","6-5","6-6","6-7","6-8",
+    "7-1","7-2","7-3","7-4","7-5","7-6","7-7","7-8",
     "洗車1","洗車2","洗車3", "回送1","回送2","回送3", "車検1","車検2", "納車待ち","出庫口","入庫口"
   ];
 
@@ -402,7 +351,7 @@
       if (p.startsWith("1-")) { x = 500 + Number(p.split("-")[1]) * 85; y = 530; }
       else if (p.startsWith("2-")) { x = 500 + Number(p.split("-")[1]) * 85; y = 430; }
       else if (p.startsWith("3-")) { x = 500 + Number(p.split("-")[1]) * 85; y = 290; }
-      else if (p.startsWith("4-")) { x = 500 + Number(p.split("-")[1]) * 85; y = 190; }
+      else if (p.startsWith("4-")) { x = 430; y = 110 + Number(p.split("-")[1]) * 65; } // 4列目も縦並びに補正済み
       else if (p.startsWith("5-")) { x = 340; y = 110 + Number(p.split("-")[1]) * 65; }
       else if (p.startsWith("6-")) { x = 250; y = 110 + Number(p.split("-")[1]) * 65; }
       else if (p.startsWith("7-")) { x = 160; y = 110 + Number(p.split("-")[1]) * 65; }
@@ -436,8 +385,17 @@
     return m + "/" + d + " " + h + ":" + min;
   }
 
+  // ログ生成時にその瞬間のデータ（cars, items）を丸ごと内部に記憶するように強化
   function addLog(msg) {
-    moveLogs.unshift(msg);
+    var snapshotCars = JSON.parse(JSON.stringify(cars));
+    var snapshotItems = JSON.parse(JSON.stringify(items));
+    
+    moveLogs.unshift({
+      msg: msg,
+      cars: snapshotCars,
+      items: snapshotItems
+    });
+    
     if (moveLogs.length > 100) moveLogs.pop();
     localStorage.setItem("yard_move_logs", JSON.stringify(moveLogs));
     renderLogs();
@@ -450,10 +408,52 @@
       el.innerHTML = "<li style='color: #94a3b8;'>まだ移動履歴はありません。</li>";
       return;
     }
-    el.innerHTML = moveLogs.map(function(log) {
-      return "<li style='border-bottom: 1px solid #f1f5f9; padding: 2px 0;'>" + log + "</li>";
+    el.innerHTML = moveLogs.map(function(log, idx) {
+      var isObject = (log && typeof log === 'object' && log.msg);
+      var msg = isObject ? log.msg : log;
+      
+      // クリックできる状態のスタイル調整（ホバーで薄く青くなる）
+      var style = isObject ? "border-bottom: 1px solid #f1f5f9; padding: 3px 0; cursor: pointer; transition: background 0.1s;" : "border-bottom: 1px solid #f1f5f9; padding: 3px 0;";
+      var hoverAction = isObject ? " onmouseover='this.style.background=\"#e0f2fe\"' onmouseout='this.style.background=\"none\"' " : "";
+      var titleText = isObject ? " title='クリックしてこの時点の場内データに復元する（要パスワード）' " : "";
+      
+      return "<li style='" + style + "'" + hoverAction + titleText + " onclick='window.rollbackLog(" + idx + ")'>" + msg + "</li>";
     }).join("");
   }
+
+  // 選択したログの時点の状態にまるごとデータを巻き戻す（Undo）処理を追加
+  window.rollbackLog = function(idx) {
+    var log = moveLogs[idx];
+    if (!log || typeof log !== 'object' || !log.cars) {
+      alert("この履歴は古いか、復元データが含まれていないため戻せません。");
+      return;
+    }
+
+    // 「レイアウト編集できる管理者」のみに制限するためパスワード入力を要求
+    var pw = prompt("【履歴からデータを巻き戻します】\n進めるには管理者パスワードを入力してください:");
+    if (pw !== ADMIN_PASSWORD) {
+      alert("パスワードが違います。復元権限がありません。");
+      return;
+    }
+
+    if (confirm("本当にこのログの時点の状態に場内配置を戻しますか？\n\n対象：\n" + log.msg)) {
+      // 過去のディープコピーから状態を上書き復元
+      cars = JSON.parse(JSON.stringify(log.cars));
+      items = JSON.parse(JSON.stringify(log.items));
+
+      var currentTimestamp = getTimeLogString();
+
+      // 先に現在のデータを保存＆再初期化
+      save();
+      init();
+      render();
+
+      // 戻した後に「いつ戻したか」がわかるよう新しいログを一番上に積む
+      addLog("[" + currentTimestamp + "] ⚠️ 履歴復元: 過去の場内データに復元しました。");
+      
+      alert("指定した時点の状態に復元しました！");
+    }
+  };
 
   window.clearLogs = function() {
     if (confirm("移動履歴ログをすべて消去しますか？")) {
